@@ -1,0 +1,43 @@
+### The baseline ViT of the final project.
+# configs/baseline.yaml as shipped, with two changes:
+#   - seven training years (2009 to 2015) rather than 2015 alone
+#   - TP6h added to the sixteen variables: precipitation carries ~47% of its variance at
+#     small scales against Z500's ~3%, and that spread is the evidence the project rests on
+# Every model version of the study copies this file and changes one thing.
+
+seed: 0
+
+experiment:
+  eval_path: data/era5_eval_5p6.zarr
+  climatology_path: data/clim_wb2_5p6.zarr
+
+dataset:
+  path: data/era5_5p6.zarr
+  stats_path: data/stats_train.zarr
+  variables: [T2M, Z850, Z500, Z250, T850, T500, T250, Q850, Q500, Q250,
+              U850, U500, U250, V850, V500, V250, TP6h]
+  sequence_length: 2
+  time_slice: {start: "2009", stop: "2015"}
+
+network:
+  name: vit
+  dim: 128
+  num_layers: 4
+  num_heads: 4
+  dim_heads: 32
+  patch_size: [4, 4]
+  expansion_factor: 2
+
+objective:
+  name: mse
+
+trainer:
+  batch_size: 16
+  lr: 1.0e-3
+  weight_decay: 0.01
+  max_steps: 2000  # the lower end; longer runs keep improving
+  rollout_steps: 4 # roll-out a single day for validation
+  predict_steps: 20  # roll-out to five days at six hours
+  # 30 hours apart, so the initialisations run through 00, 06, 12 and 18 UTC in turn:
+  # 292 a year, 876 over the three test years, and 2.4 GB of forecasts a run
+  predict_stride: 5

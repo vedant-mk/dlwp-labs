@@ -15,3 +15,5 @@ logs/
 wandb/
 checkpoints/
 runs/
+explore/smoke_runs/
+explore/*.log

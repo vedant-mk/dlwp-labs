@@ -9,6 +9,11 @@ def latitude_weights(field: xr.Dataset) -> xr.DataArray:
     return w / w.mean()
 
 
+def mean_over_initialisations(score: xr.Dataset) -> xr.Dataset:
+    """Average a per-initialisation score over the initialisations, leaving one value per lead."""
+    return score.mean("time") if "time" in score.dims else score
+
+
 def truth_at(era5: xr.Dataset, forecast: xr.Dataset) -> xr.Dataset:
     valid = forecast.time + forecast.prediction_timedelta
     return era5[list(forecast.data_vars)].rename(time="valid_time").sel(valid_time=valid)
@@ -23,9 +28,15 @@ def ensemble_mean(forecast: xr.Dataset, member: str = "number") -> xr.Dataset:
     return forecast.mean(member) if member in forecast.dims else forecast
 
 
-def rmse(forecast: xr.Dataset, truth: xr.Dataset) -> xr.Dataset:
+def rmse_per_initialisation(forecast: xr.Dataset, truth: xr.Dataset) -> xr.Dataset:
     weights = latitude_weights(forecast)
     return np.sqrt(((forecast - truth) ** 2).weighted(weights).mean(SPACE))
+
+
+def rmse(forecast: xr.Dataset, truth: xr.Dataset) -> xr.Dataset:
+    # one value per lead and variable: the initialisations are averaged over, as experiment.py
+    # expects when it melts the table on (score, prediction_timedelta)
+    return mean_over_initialisations(rmse_per_initialisation(forecast, truth))
 
 
 def mae(forecast: xr.Dataset, truth: xr.Dataset) -> xr.Dataset:
@@ -40,7 +51,9 @@ def bias(forecast: xr.Dataset, truth: xr.Dataset) -> xr.Dataset:
 
 def activity(field: xr.Dataset, climatology: xr.Dataset) -> xr.Dataset:
     weights = latitude_weights(field)
-    return np.sqrt(((field - climatology) ** 2).weighted(weights).mean(SPACE))
+    climatology = aligned_climatology(climatology, field)
+    return mean_over_initialisations(
+        np.sqrt(((field - climatology) ** 2).weighted(weights).mean(SPACE)))
 
 
 def aligned_climatology(climatology: xr.Dataset, forecast: xr.Dataset) -> xr.Dataset:
@@ -51,12 +64,16 @@ def aligned_climatology(climatology: xr.Dataset, forecast: xr.Dataset) -> xr.Dat
     return climatology
 
 
-def acc(forecast: xr.Dataset, truth: xr.Dataset, climatology: xr.Dataset) -> xr.Dataset:
+def acc_per_initialisation(forecast: xr.Dataset, truth: xr.Dataset, climatology: xr.Dataset) -> xr.Dataset:
     weights = latitude_weights(forecast)
     climatology = aligned_climatology(climatology, forecast)
     f, t = forecast - climatology, truth - climatology
     covariance = (f * t).weighted(weights).mean(SPACE)
     return covariance / np.sqrt((f ** 2).weighted(weights).mean(SPACE) * (t ** 2).weighted(weights).mean(SPACE))
+
+
+def acc(forecast: xr.Dataset, truth: xr.Dataset, climatology: xr.Dataset) -> xr.Dataset:
+    return mean_over_initialisations(acc_per_initialisation(forecast, truth, climatology))
 
 
 def skill_score(score: xr.Dataset, reference: xr.Dataset) -> xr.Dataset:

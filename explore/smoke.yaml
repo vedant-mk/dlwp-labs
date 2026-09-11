@@ -1,0 +1,46 @@
+### Smoke test: does the pipeline run end to end at all?
+# Not a result. 50 training steps and a sparse roll-out, purely to prove that the data load,
+# the ViT, the roll-out, the xarray conversion and the scoring all work before anything
+# expensive or novel is built on them.
+#
+# out_dir is deliberately NOT runs/: experiment.plot_rmse globs out_dir/*/*/scores.csv, so a
+# smoke run left under runs/ would appear in the paper's headline RMSE figure.
+
+seed: 0
+
+experiment:
+  name: smoke
+  out_dir: explore/smoke_runs
+  eval_path: data/era5_eval_5p6.zarr
+  climatology_path: data/clim_wb2_5p6.zarr
+
+dataset:
+  path: data/era5_5p6.zarr
+  stats_path: data/stats_train.zarr
+  variables: [T2M, Z850, Z500, Z250, T850, T500, T250, Q850, Q500, Q250,
+              U850, U500, U250, V850, V500, V250, TP6h]
+  sequence_length: 2
+  time_slice: {start: "2009", stop: "2015"}
+
+network:
+  name: vit
+  dim: 128
+  num_layers: 4
+  num_heads: 4
+  dim_heads: 32
+  patch_size: [4, 4]
+  expansion_factor: 2
+
+objective:
+  name: mse
+
+trainer:
+  batch_size: 16
+  lr: 1.0e-3
+  weight_decay: 0.01
+  max_steps: 50
+  schedulers: [{type: linear, steps: 5, start_factor: 0.01},
+               {type: cosine, steps: 45}]
+  rollout_steps: 4
+  predict_steps: 20
+  predict_stride: 100   # ~14 initialisations a year, so the test epoch is quick and small
