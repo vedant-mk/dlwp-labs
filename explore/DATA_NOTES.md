@@ -251,3 +251,36 @@ Workaround in use: `KMP_DUPLICATE_LIB_OK=TRUE`. Worth fixing properly before lon
 
 Google Cloud "Billing Account for Education" is active (coupon redeemed, $0.00 spent as of
 2026-09-11). GPU VM to be provisioned when training starts.
+
+---
+
+## Extra verification figures (script: `explore/extra_figures.py`)
+
+The brief asks for two additional figures and a justification of why they give views of
+performance complementary to the required RMSE curves.
+
+**E1 — forecast zonal power spectrum ÷ ERA5 spectrum** (`E1_spectrum_ratio.png`), for Z500, T850,
+Q850, TP6h at 1 and 5 days. *Why complementary:* RMSE is minimised by the conditional mean, so it
+rewards smooth forecasts and cannot distinguish a sharp-but-displaced feature from a missing one
+(the double penalty). The spectrum ratio is independent of where features sit: it asks only whether
+the forecast carries realistic variance at each scale. 1 = realistic, <1 = blurred, >1 = spurious.
+
+**E2 — RMSE change vs baseline, every variable × lead** (`E2_rmse_change_heatmap.png`).
+*Why complementary:* the required figure covers only Z500 and T850, both large-scale fields
+(3% and 7% small-scale variance). A hierarchical-scale bias should matter most for fields with
+small-scale structure (Q, TP6h at 25–47%), so this shows where each variant helps and hurts.
+
+### Finding from E1 on the rollout-trained baseline (2026-09-12)
+
+The baseline is wrong at *both* ends of the spectrum:
+- **Blurred at synoptic scales:** power ratio 0.5–0.8 at k = 3–8 (Z500, 5 days). Storm-sized
+  features lose 20–50% of their variance.
+- **Spurious grid-scale noise:** ratio rises steeply for k ≥ 10, with a **spike exactly at k = 16**
+  (Z500 at 5 d: 11.2, 17.1, **50.8**, 31.7, 36.0 for k = 14..18) and at k = 32. 64 longitude
+  cells ÷ 4-cell patches = 16 — the patch grid. Confirmed in physical space: mean |jump| between
+  neighbouring columns is largest across patch boundaries (606 vs 480–545 inside a patch).
+  The spike is absent at 1 day and grows over the rollout, i.e. seams accumulate step by step.
+- TP6h is blurred at every scale (ratio 0.1–0.7): MSE regresses the unpredictable field to its mean.
+
+**Sharpened prediction for the variants:** A (2×2 + 8×8 patches) should remove or relocate the
+k = 16 spike; C (pyramid loss, weight 4 on 2×2-scale detail) should suppress the grid-scale excess.
