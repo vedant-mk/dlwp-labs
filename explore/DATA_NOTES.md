@@ -284,3 +284,21 @@ The baseline is wrong at *both* ends of the spectrum:
 
 **Sharpened prediction for the variants:** A (2×2 + 8×8 patches) should remove or relocate the
 k = 16 spike; C (pyramid loss, weight 4 on 2×2-scale detail) should suppress the grid-scale excess.
+
+---
+
+## Pre-registered criteria for the seed analysis (written 2026-09-12, before seeds 1-2 finished)
+
+**Rule for "real":** a difference counts as real only if all 3 seeds agree in sign AND the mean
+difference is at least 2x the seed-to-seed standard deviation. Otherwise it is reported as within
+seed noise. This is fixed now so the analysis cannot be tuned to the results.
+
+**Hypotheses, from the seed-0 results:**
+1. Baseline is reproducible: Z500/T850 RMSE spread across seeds within ~1-2%.
+2. A improves humidity (Q850/Q500/Q250) RMSE by ~5-8% at 1-3 days.
+3. A degrades smooth large-scale fields (Z500, T850, T2M) at 5 days.
+4. C reduces spurious small-scale power (E1 ratio at k >= 9) by ~15-30% relative to baseline.
+5. C's Z500/T850 RMSE is within seed noise of the baseline.
+
+**Expectation before seeing seeds:** 1-3 likely (large effects), 4 probable, 5 uncertain.
+Outcomes that fail these are reported as such, not reframed.
