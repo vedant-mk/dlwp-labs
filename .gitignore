@@ -18,3 +18,6 @@ runs/
 explore/smoke_runs/
 explore/*.log
 *.ckpt
+explore/seed_*.log
+explore/seed_driver.out
+explore/rollout_runs.log
