@@ -1,0 +1,206 @@
+% References for the DLWP final project: hierarchical scale interactions in a ViT forecaster.
+% Written from memory, not exported from a database. CHECK EVERY DOI, VOLUME AND PAGE
+% before submission. Entries marked "VERIFY" are the ones with the least certain details.
+% Annotated guide to what each supports: explore/REFERENCES.md
+
+% ---------------------------------------------------------------- data and benchmark
+@article{hersbach2020era5,
+  author  = {Hersbach, Hans and Bell, Bill and Berrisford, Paul and others},
+  title   = {The {ERA5} global reanalysis},
+  journal = {Quarterly Journal of the Royal Meteorological Society},
+  year    = {2020},
+  volume  = {146},
+  number  = {730},
+  pages   = {1999--2049},
+  doi     = {10.1002/qj.3803}
+}
+
+@article{rasp2020weatherbench,
+  author  = {Rasp, Stephan and Dueben, Peter D. and Scher, Sebastian and Weyn, Jonathan A. and Mouatadid, Soukayna and Thuerey, Nils},
+  title   = {{WeatherBench}: A Benchmark Data Set for Data-Driven Weather Forecasting},
+  journal = {Journal of Advances in Modeling Earth Systems},
+  year    = {2020},
+  volume  = {12},
+  number  = {11},
+  pages   = {e2020MS002203},
+  doi     = {10.1029/2020MS002203}
+}
+
+@article{rasp2024weatherbench2,
+  author  = {Rasp, Stephan and Hoyer, Stephan and Merose, Alexander and others},
+  title   = {{WeatherBench 2}: A Benchmark for the Next Generation of Data-Driven Global Weather Models},
+  journal = {Journal of Advances in Modeling Earth Systems},
+  year    = {2024},
+  volume  = {16},
+  pages   = {e2023MS004019},
+  doi     = {10.1029/2023MS004019}
+}
+
+% ---------------------------------------------------------------- physics of scales and predictability
+@article{lorenz1969predictability,
+  author  = {Lorenz, Edward N.},
+  title   = {The predictability of a flow which possesses many scales of motion},
+  journal = {Tellus},
+  year    = {1969},
+  volume  = {21},
+  number  = {3},
+  pages   = {289--307},
+  doi     = {10.3402/tellusa.v21i3.10086}
+}
+
+@article{nastrom1985climatology,
+  author  = {Nastrom, G. D. and Gage, K. S.},
+  title   = {A Climatology of Atmospheric Wavenumber Spectra of Wind and Temperature Observed by Commercial Aircraft},
+  journal = {Journal of the Atmospheric Sciences},
+  year    = {1985},
+  volume  = {42},
+  number  = {9},
+  pages   = {950--960},
+  doi     = {10.1175/1520-0469(1985)042<0950:ACOAWS>2.0.CO;2}
+}
+
+% ---------------------------------------------------------------- architectures
+@inproceedings{dosovitskiy2021vit,
+  author    = {Dosovitskiy, Alexey and Beyer, Lucas and Kolesnikov, Alexander and others},
+  title     = {An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2021}
+}
+
+@inproceedings{he2016resnet,
+  author    = {He, Kaiming and Zhang, Xiangyu and Ren, Shaoqing and Sun, Jian},
+  title     = {Deep Residual Learning for Image Recognition},
+  booktitle = {IEEE Conference on Computer Vision and Pattern Recognition (CVPR)},
+  year      = {2016},
+  pages     = {770--778}
+}
+
+@inproceedings{chen2021crossvit,
+  author    = {Chen, Chun-Fu (Richard) and Fan, Quanfu and Panda, Rameswar},
+  title     = {{CrossViT}: Cross-Attention Multi-Scale Vision Transformer for Image Classification},
+  booktitle = {IEEE/CVF International Conference on Computer Vision (ICCV)},
+  year      = {2021},
+  pages     = {357--366}
+}
+
+@inproceedings{fan2021mvit,
+  author    = {Fan, Haoqi and Xiong, Bo and Mangalam, Karttikeya and Li, Yanghao and Yan, Zhicheng and Malik, Jitendra and Feichtenhofer, Christoph},
+  title     = {Multiscale Vision Transformers},
+  booktitle = {IEEE/CVF International Conference on Computer Vision (ICCV)},
+  year      = {2021},
+  pages     = {6824--6835}
+}
+
+@inproceedings{liu2021swin,
+  author    = {Liu, Ze and Lin, Yutong and Cao, Yue and Hu, Han and Wei, Yixuan and Zhang, Zheng and Lin, Stephen and Guo, Baining},
+  title     = {Swin Transformer: Hierarchical Vision Transformer using Shifted Windows},
+  booktitle = {IEEE/CVF International Conference on Computer Vision (ICCV)},
+  year      = {2021},
+  pages     = {10012--10022}
+}
+
+% ---------------------------------------------------------------- losses and scale decomposition
+@article{burt1983laplacian,
+  author  = {Burt, Peter J. and Adelson, Edward H.},
+  title   = {The {Laplacian} Pyramid as a Compact Image Code},
+  journal = {IEEE Transactions on Communications},
+  year    = {1983},
+  volume  = {31},
+  number  = {4},
+  pages   = {532--540},
+  doi     = {10.1109/TCOM.1983.1095851}
+}
+
+@inproceedings{rahaman2019spectral,
+  author    = {Rahaman, Nasim and Baratin, Aristide and Arpit, Devansh and Draxler, Felix and Lin, Min and Hamprecht, Fred and Bengio, Yoshua and Courville, Aaron},
+  title     = {On the Spectral Bias of Neural Networks},
+  booktitle = {International Conference on Machine Learning (ICML)},
+  year      = {2019},
+  pages     = {5301--5310}
+}
+
+% VERIFY: authors, title wording and venue (arXiv 2025; possibly ICML 2025)
+@article{subich2025doublepenalty,
+  author  = {Subich, Christopher and Husain, Syed Zahid and Separovic, Leo and Yang, Jing},
+  title   = {Fixing the Double Penalty in Data-Driven Weather Forecasting Through a Modified Spherical Harmonic Loss Function},
+  journal = {arXiv preprint arXiv:2501.19374},
+  year    = {2025}
+}
+
+% ---------------------------------------------------------------- data-driven weather models
+@article{lam2023graphcast,
+  author  = {Lam, Remi and Sanchez-Gonzalez, Alvaro and Willson, Matthew and others},
+  title   = {Learning skillful medium-range global weather forecasting},
+  journal = {Science},
+  year    = {2023},
+  volume  = {382},
+  number  = {6677},
+  pages   = {1416--1421},
+  doi     = {10.1126/science.adi2336}
+}
+
+@article{bi2023pangu,
+  author  = {Bi, Kaifeng and Xie, Lingxi and Zhang, Hengheng and Chen, Xin and Gu, Xiaotao and Tian, Qi},
+  title   = {Accurate medium-range global weather forecasting with {3D} neural networks},
+  journal = {Nature},
+  year    = {2023},
+  volume  = {619},
+  pages   = {533--538},
+  doi     = {10.1038/s41586-023-06185-3}
+}
+
+@article{pathak2022fourcastnet,
+  author  = {Pathak, Jaideep and Subramanian, Shashank and Harrington, Peter and others},
+  title   = {{FourCastNet}: A Global Data-driven High-resolution Weather Model using Adaptive {Fourier} Neural Operators},
+  journal = {arXiv preprint arXiv:2202.11214},
+  year    = {2022}
+}
+
+@article{keisler2022gnn,
+  author  = {Keisler, Ryan},
+  title   = {Forecasting Global Weather with Graph Neural Networks},
+  journal = {arXiv preprint arXiv:2202.07575},
+  year    = {2022}
+}
+
+@article{weyn2020cubedsphere,
+  author  = {Weyn, Jonathan A. and Durran, Dale R. and Caruana, Rich},
+  title   = {Improving Data-Driven Global Weather Prediction Using Deep Convolutional Neural Networks on a Cubed Sphere},
+  journal = {Journal of Advances in Modeling Earth Systems},
+  year    = {2020},
+  volume  = {12},
+  number  = {9},
+  pages   = {e2020MS002109},
+  doi     = {10.1029/2020MS002109}
+}
+
+% VERIFY: volume and pages
+@article{price2025gencast,
+  author  = {Price, Ilan and Sanchez-Gonzalez, Alvaro and Alet, Ferran and others},
+  title   = {Probabilistic weather forecasting with machine learning},
+  journal = {Nature},
+  year    = {2025},
+  volume  = {637},
+  pages   = {84--90},
+  doi     = {10.1038/s41586-024-08252-9}
+}
+
+% VERIFY: volume and pages
+@article{kochkov2024neuralgcm,
+  author  = {Kochkov, Dmitrii and Yuval, Janni and Langmore, Ian and others},
+  title   = {Neural general circulation models for weather and climate},
+  journal = {Nature},
+  year    = {2024},
+  volume  = {632},
+  pages   = {1060--1066},
+  doi     = {10.1038/s41586-024-07744-y}
+}
+
+% ---------------------------------------------------------------- the course pipeline
+@misc{thuemmel2026dlwplabs,
+  author       = {Th{\"u}mmel, Jannik},
+  title        = {Deep Learning for Weather Prediction: labs},
+  year         = {2026},
+  howpublished = {\url{https://github.com/jthuemmel/dlwp-labs}},
+  note         = {Course materials, University of Augsburg}
+}
