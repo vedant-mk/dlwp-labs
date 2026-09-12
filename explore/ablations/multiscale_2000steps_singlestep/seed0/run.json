@@ -1,0 +1,9 @@
+{
+  "run": "multiscale",
+  "seed": 0,
+  "device": "mps:0",
+  "parameters": 731656,
+  "steps": 2000,
+  "train_seconds": 667.5,
+  "test_seconds": 51.2
+}

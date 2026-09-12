@@ -1,0 +1,74 @@
+dataset:
+  lat_slice: null
+  lon_slice: null
+  path: data/era5_5p6.zarr
+  sequence_length: 2
+  stats_path: data/stats_train.zarr
+  time_slice:
+    start: '2009'
+    stop: '2015'
+  variables:
+  - T2M
+  - Z850
+  - Z500
+  - Z250
+  - T850
+  - T500
+  - T250
+  - Q850
+  - Q500
+  - Q250
+  - U850
+  - U500
+  - U250
+  - V850
+  - V500
+  - V250
+  - TP6h
+network:
+  dim: 128
+  dim_heads: 32
+  drop_path: 0.0
+  expansion_factor: 2
+  name: vit
+  num_heads: 4
+  num_layers: 4
+  patch_size:
+  - 4
+  - 4
+  patch_sizes: null
+  residual: true
+objective:
+  kwargs:
+    levels: 3
+    weights:
+    - 4.0
+    - 2.0
+    - 1.0
+  name: pyramid_mse
+  weights: null
+trainer:
+  batch_size: 16
+  betas: !!python/tuple
+  - 0.9
+  - 0.95
+  lr: 0.001
+  max_steps: 2000
+  num_workers: 0
+  pre_steps: 0
+  predict_steps: 20
+  predict_stride: 5
+  rollout_steps: 4
+  schedulers:
+  - start_factor: 0.01
+    steps: 100
+    type: linear
+  - steps: 1900
+    type: cosine
+  train_rollout_steps: 1
+  val_stride: 40
+  val_time_slice:
+    start: 2015-12
+    stop: 2015-12
+  weight_decay: 0.01
+world: null

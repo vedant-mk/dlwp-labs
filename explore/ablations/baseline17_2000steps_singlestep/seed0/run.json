@@ -1,0 +1,9 @@
+{
+  "run": "baseline17",
+  "seed": 0,
+  "device": "mps:0",
+  "parameters": 742784,
+  "steps": 2000,
+  "train_seconds": 150.4,
+  "test_seconds": 22.8
+}

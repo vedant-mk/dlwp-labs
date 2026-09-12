@@ -26,7 +26,7 @@ dataset:
   stats_path: data/stats_train.zarr
   variables: [T2M, Z850, Z500, Z250, T850, T500, T250, Q850, Q500, Q250,
               U850, U500, U250, V850, V500, V250, TP6h]
-  sequence_length: 2
+  sequence_length: 5   # holds the 4-step training roll-out and its initial state
   time_slice: {start: "2009", stop: "2015"}
 
 network:
@@ -46,7 +46,12 @@ trainer:
   batch_size: 16
   lr: 1.0e-3
   weight_decay: 0.01
-  max_steps: 2000
+  max_steps: 6000
+  # 4000 single-step, then 2000 steps rolling out 4 steps with gradients through the chain
+  # (lab 3 part 2); without it every model diverges past a day because it never sees its own errors
+  pre_steps: 4000
+  train_rollout_steps: 4
+  schedulers: [{type: linear, steps: 100, start_factor: 0.01}, {type: cosine, steps: 5900}]
   rollout_steps: 4
   predict_steps: 20
   predict_stride: 5

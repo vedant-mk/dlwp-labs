@@ -90,6 +90,11 @@ class ForecastModule(L.LightningModule):
         score = self.loss_fn(observation, prediction)
         return score.mul(self.per_variable_weights).mul(self.area_weights).mean()
 
+    @staticmethod
+    def validation_loss(observation: torch.FloatTensor, prediction: torch.FloatTensor) -> torch.FloatTensor:
+        # plain MSE whatever the training objective, so val/loss_step* is one quantity across runs
+        return loss_fn.f_mse(observation, prediction).mean()
+
     def training_step(self, batch, batch_idx):
         states, _ = batch
         steps = 1 if self.global_step < self.cfg.pre_steps else self.cfg.train_rollout_steps
@@ -102,7 +107,7 @@ class ForecastModule(L.LightningModule):
         states, _ = batch
         prediction = self.rollout(states[:, :, 0], self.cfg.rollout_steps)
         for k in range(self.cfg.rollout_steps):
-            self.log(f"val/loss_step{k + 1}", self.step_loss(states[:, :, k + 1], prediction[:, :, k]),
+            self.log(f"val/loss_step{k + 1}", self.validation_loss(states[:, :, k + 1], prediction[:, :, k]),
                      prog_bar=(k == 0))
 
     def predict_step(self, batch, batch_idx):
