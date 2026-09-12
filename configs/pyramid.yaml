@@ -1,0 +1,57 @@
+### Variant C: the same inductive bias in the OBJECTIVE.
+# The network is the baseline, untouched: same architecture, same parameter count, same cost.
+# What changes is what it is penalised for. Plain MSE is minimised by predicting the conditional
+# mean, so a model blurs away whatever it cannot predict, and small scales - which carry little
+# of the total variance - go first. f_pyramid_mse splits prediction and target into a Laplacian
+# pyramid and scores each scale band separately, which makes that blurring expensive.
+#
+#   band 0  deviation from the 2x2 block mean   32 x 64   weight 4
+#   band 1  deviation from the 4x4 block mean   16 x 32   weight 2
+#   band 2  the remaining low-pass residual      8 x 16   weight 1
+#
+# The weights rise towards the fine scales because the variance falls towards them: the zonal
+# spectra in explore/DATA_NOTES.md show Z500 holding only ~3% of its variance above wavenumber 9.
+# Roughly geometric weights make each band contribute comparably to the loss instead of letting
+# the largest scales dominate.
+#
+# Note the pyramid bands are not orthogonal, so this is not MSE with uniform weights; the
+# training curves of this run and the baseline are not comparable, only their validation MSE is.
+#
+# Everything else is identical to configs/baseline17.yaml.
+
+seed: 0
+
+experiment:
+  eval_path: data/era5_eval_5p6.zarr
+  climatology_path: data/clim_wb2_5p6.zarr
+
+dataset:
+  path: data/era5_5p6.zarr
+  stats_path: data/stats_train.zarr
+  variables: [T2M, Z850, Z500, Z250, T850, T500, T250, Q850, Q500, Q250,
+              U850, U500, U250, V850, V500, V250, TP6h]
+  sequence_length: 2
+  time_slice: {start: "2009", stop: "2015"}
+
+network:
+  name: vit
+  dim: 128
+  num_layers: 4
+  num_heads: 4
+  dim_heads: 32
+  patch_size: [4, 4]
+  expansion_factor: 2
+  residual: true
+
+objective:
+  name: pyramid_mse
+  kwargs: {levels: 3, weights: [4.0, 2.0, 1.0]}
+
+trainer:
+  batch_size: 16
+  lr: 1.0e-3
+  weight_decay: 0.01
+  max_steps: 2000
+  rollout_steps: 4
+  predict_steps: 20
+  predict_stride: 5

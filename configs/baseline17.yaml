@@ -27,6 +27,7 @@ network:
   dim_heads: 32
   patch_size: [4, 4]
   expansion_factor: 2
+  residual: true    # predict the tendency; without it the ViT loses to persistence at 6 h
 
 objective:
   name: mse

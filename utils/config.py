@@ -28,8 +28,14 @@ class NetworkConfig:
     num_heads: Optional[int] = None
     dim_heads: int = 32
     patch_size: tuple = (4, 4)
+    # the multiscale_vit embeds the field once per entry and concatenates the tokens;
+    # None falls back to the single patch_size above
+    patch_sizes: Optional[List[tuple]] = None
     expansion_factor: int = 2
     drop_path: float = 0.0
+    # predict the tendency rather than the whole next state: forward(x) returns x + net(x).
+    # Without it the network has no path to the identity and loses to persistence at six hours
+    residual: bool = False
 
 
 @dataclass

@@ -70,8 +70,14 @@ class ForecastModule(L.LightningModule):
         return einops.repeat(w / w.mean(), f"(h hh) -> {self.world.field_pattern}",
                              **self.world.token_sizes, **self.world.patch_sizes)
 
+    @property
+    def residual(self) -> bool:
+        # persistence already returns its input; adding it again would double the state
+        return self.model_cfg.residual and self.model_cfg.name != "persistence"
+
     def forward(self, state: torch.FloatTensor) -> torch.FloatTensor:
-        return self.model(state)
+        prediction = self.model(state)
+        return state + prediction if self.residual else prediction
 
     def rollout(self, state: torch.FloatTensor, steps: int) -> torch.FloatTensor:
         out = []

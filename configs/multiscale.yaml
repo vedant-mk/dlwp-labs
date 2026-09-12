@@ -1,0 +1,52 @@
+### Variant A: the inductive bias in the ARCHITECTURE.
+# The baseline embeds the globe at one patch size, so every structure is described at a single
+# resolution. Here the field is embedded at 2x2 and 8x8 at once and the token sets are
+# concatenated, so attention runs over fine and coarse tokens together; each branch writes its
+# own field and the two are summed, letting the coarse branch carry the large-scale part and
+# the fine branch the residual.
+#
+#   fine    2x2 patches -> 16 x 32 = 512 tokens, 11.25 degrees each
+#   coarse  8x8 patches ->  4 x  8 =  32 tokens, 45 degrees each
+#
+# dim is 100 rather than 128 so the parameter count matches the baseline to within 2%
+# (731,656 against 742,784, or 0.985x). Without that the variant carries 38% more parameters
+# and any gain is confounded with capacity. The match errs slightly against this variant,
+# which is the safe direction.
+#
+# Everything else is identical to configs/baseline17.yaml.
+
+seed: 0
+
+experiment:
+  eval_path: data/era5_eval_5p6.zarr
+  climatology_path: data/clim_wb2_5p6.zarr
+
+dataset:
+  path: data/era5_5p6.zarr
+  stats_path: data/stats_train.zarr
+  variables: [T2M, Z850, Z500, Z250, T850, T500, T250, Q850, Q500, Q250,
+              U850, U500, U250, V850, V500, V250, TP6h]
+  sequence_length: 2
+  time_slice: {start: "2009", stop: "2015"}
+
+network:
+  name: multiscale_vit
+  dim: 100
+  num_layers: 4
+  num_heads: 4
+  dim_heads: 32
+  patch_sizes: [[2, 2], [8, 8]]
+  expansion_factor: 2
+  residual: true
+
+objective:
+  name: mse
+
+trainer:
+  batch_size: 16
+  lr: 1.0e-3
+  weight_decay: 0.01
+  max_steps: 2000
+  rollout_steps: 4
+  predict_steps: 20
+  predict_stride: 5

@@ -4,7 +4,7 @@ import einops
 import torch
 from einops.layers.torch import EinMix
 
-from utils.config import NetworkConfig, WorldConfig
+from utils.config import NetworkConfig, WorldConfig, build_world
 
 
 def exists(val):
@@ -135,6 +135,63 @@ class ViT(torch.nn.Module):
         return self.to_fields(tokens)
 
 
+class MultiScaleViT(torch.nn.Module):
+    """A ViT that embeds the field at several patch sizes at once.
+
+    The baseline cuts the globe into one grid of 4x4 patches, so every structure is described
+    at a single resolution. Here the field is embedded once per entry of `patch_sizes` and the
+    token sets are concatenated, so attention runs over coarse and fine tokens together: a fine
+    token can read the large-scale context it sits in, and a coarse token can read the detail
+    it contains. Each branch writes its own field and the outputs are summed, which lets the
+    coarse branch carry the large-scale part and the fine branch the residual.
+    """
+
+    def __init__(self, network: NetworkConfig, world: WorldConfig):
+        super().__init__()
+        patch_sizes = network.patch_sizes or [network.patch_size]
+        num_variables = world.field_sizes["v"]
+        field_shape = (world.field_sizes["h"], world.field_sizes["w"])
+        self.worlds = [build_world(num_variables, field_shape, tuple(p)) for p in patch_sizes]
+        self.token_counts = [w.num_tokens for w in self.worlds]
+
+        self.to_tokens = torch.nn.ModuleList()
+        self.to_fields = torch.nn.ModuleList()
+        self.positions = torch.nn.ParameterList()
+        for scale in self.worlds:
+            axes = {**scale.token_sizes, **scale.patch_sizes}
+            self.to_tokens.append(torch.nn.Sequential(
+                EinMix(f"b {scale.field_pattern} -> b ({scale.token_pattern}) d",
+                       weight_shape=f"v {scale.patch_pattern} d", d=network.dim, **axes),
+                torch.nn.RMSNorm(network.dim),
+            ))
+            self.to_fields.append(
+                EinMix(f"b ({scale.token_pattern}) d -> b {scale.field_pattern}",
+                       weight_shape=f"v d {scale.patch_pattern}", d=network.dim, **axes))
+            self.positions.append(
+                torch.nn.Parameter(init_sincos_positions(network.dim, shape=scale.token_shape)))
+
+        self.blocks = torch.nn.ModuleList([
+            TransformerBlock(network.dim, num_heads=network.num_heads, dim_heads=network.dim_heads,
+                             expansion_factor=network.expansion_factor, drop_path=network.drop_path)
+            for _ in range(network.num_layers)
+        ])
+
+        self.apply(ViT.base_init)
+
+    def forward(self, x: torch.FloatTensor) -> torch.FloatTensor:
+        tokens = torch.cat([embed(x) + position
+                            for embed, position in zip(self.to_tokens, self.positions)], dim=1)
+        for block in self.blocks:
+            tokens = block(tokens)
+
+        fields, start = None, 0
+        for count, to_field in zip(self.token_counts, self.to_fields):
+            part = to_field(tokens[:, start: start + count])
+            fields = part if fields is None else fields + part
+            start += count
+        return fields
+
+
 class Persistence(torch.nn.Module):
     """The trivial forecast: the next state is this one."""
 
@@ -142,10 +199,12 @@ class Persistence(torch.nn.Module):
         return x
 
 
-NETWORKS = {"vit": ViT, "persistence": Persistence}
+NETWORKS = {"vit": ViT, "multiscale_vit": MultiScaleViT, "persistence": Persistence}
 
 
 def build_network(network: NetworkConfig, world: WorldConfig) -> torch.nn.Module:
     if network.name not in NETWORKS:
         raise ValueError(f"unknown network {network.name!r}, expected one of {sorted(NETWORKS)}")
-    return Persistence() if network.name == "persistence" else ViT(network, world)
+    if network.name == "persistence":
+        return Persistence()
+    return NETWORKS[network.name](network, world)
