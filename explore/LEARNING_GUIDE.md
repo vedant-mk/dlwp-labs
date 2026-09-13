@@ -767,6 +767,7 @@ Try each in under a minute, without notes.
 | `explore/validate_on_2016.py` · `figures/validation2016.md` | Protocol decisions re-checked on 2016 |
 | `explore/figures/` | All figures |
 | `explore/ablations/` | Earlier runs kept as evidence |
+| `explore/CLAIMS_AND_EVIDENCE.md` | Hoped vs got, brief checklist, every claim with its evidence and reference |
 | `explore/LEARNING_GUIDE.md` | This guide |
 
 ---
@@ -776,6 +777,7 @@ Try each in under a minute, without notes.
 | Date | Added |
 |---|---|
 | 2026-09-12 | First version: sections 1–21, covering everything up to seed-0 results and the start of seeds 1–2 |
+| 2026-09-13 | Added `CLAIMS_AND_EVIDENCE.md` (claims ledger for writing); hardware confirmed as Apple M1 |
 | 2026-09-13 | Round 2 (§16.5): seam smoother, A′/B′/C′, P6–P9 all hold, measured skill horizons; open questions, timeline, lessons, self-test, repo map updated |
 | 2026-09-13 | Required RMSE figure over seeds (F1): models cross climatology at ~2.3 d (Z500); persistence crossing later measured at 4.5 d; §2 status updated |
 | 2026-09-13 | §16.0 final seed verdicts; §9.3 rollout explanation corrected with the equal-length control; §13.4 validation fixes done; timeline, lessons, open questions, self-test, repo map updated |

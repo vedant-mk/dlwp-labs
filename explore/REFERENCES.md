@@ -28,6 +28,7 @@ before submission**; entries marked VERIFY in the .bib are the least certain.
 | `he2016resnet` | Residual connection. We predict the tendency `x + f(x)`; justify it here and with GraphCast/Pangu below. |
 | `chen2021crossvit` | **Closest precedent for Variant A**: embedding an image at two patch sizes and letting the scales exchange information. |
 | `fan2021mvit` | Multi-scale token hierarchies in vision transformers. |
+| `odena2016checkerboard` | **Analogy for the patch seams**: networks that write their output in strided blocks leave artefacts at the stride period. About transposed convolutions, not ViT patch un-embedding, so cite as an analogous mechanism, not direct precedent. |
 | `liu2021swin` | Hierarchical, windowed attention — the road not taken (Variant B), and the backbone of Pangu-Weather. |
 
 ## Objective (Methods, Variant C)
