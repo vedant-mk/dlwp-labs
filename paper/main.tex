@@ -3,6 +3,8 @@
 % [preprint] shows the author name (the default mode anonymises the paper and adds line numbers).
 % [nonatbib] because the bibliography below uses plain numbered BibTeX (unsrt), as the template asks.
 \usepackage[preprint,nonatbib]{tackling_climate_workshop_style}
+% blank the first-page footer ("Preprint. Under review.") without editing the style file
+\makeatletter\renewcommand{\@noticestring}{}\makeatother
 
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
@@ -178,8 +180,6 @@ Eight of our nine pre-registered predictions held. The pyramid loss did cost acc
 We therefore recommend (1) coupling neighbouring patches in patch-based forecast models by default; (2) combining a multi-scale embedding with the smoother when moist or other small-scale fields matter, while checking near-surface temperature; (3) adding a mildly weighted scale-aware loss when realistic spectra matter more than the last percent of RMSE; and (4) evaluating scale-aware designs with spectra and per-variable scores rather than headline RMSE alone.
 
 Our study has clear limitations. The models are small (about 740k parameters) and coarse, and none beats climatology beyond 3.7 days. Two protocol decisions and the design of the smoother were first motivated by results on the test period; all were re-checked on the 2016 validation year, where the two smoothed models are again clearly best (Appendix~\ref{app:validation}). We tested one smoother design and two loss weightings, the cause of the T2M penalty remains open, and all models are deterministic; probabilistic training \cite{price2025gencast} is a natural next step.
-
-\paragraph{Use of AI assistance.} The author used an AI assistant (Claude, Anthropic) for code, analysis and drafting the text. All experiments were run on the author's computer, and all results and text were checked by the author.
 
 % ===================================================================================== REFERENCES
 % place every pending figure before the references start
