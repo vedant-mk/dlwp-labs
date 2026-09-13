@@ -23,3 +23,5 @@ explore/seed_driver.out
 explore/rollout_runs.log
 explore/seed_driver*.out
 explore/validate_*.log
+paper/*.zip
+paper/overleaf/

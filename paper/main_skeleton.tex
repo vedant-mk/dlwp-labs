@@ -1,0 +1,201 @@
+\documentclass{article}
+
+% [preprint] shows the author name (the default mode anonymises the paper and adds line numbers).
+% [nonatbib] because the bibliography below uses plain numbered BibTeX (unsrt), as the template asks.
+\usepackage[preprint,nonatbib]{tackling_climate_workshop_style}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{booktabs}
+\usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{nicefrac}
+\usepackage{microtype}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{listings}
+
+% Visible writing prompts. Delete each one as you replace it with your own text.
+\newcommand{\todo}[1]{\textcolor{red}{[TODO: #1]}}
+
+\lstset{language=Python, basicstyle=\ttfamily\scriptsize, breaklines=true, frame=lines,
+        columns=fullflexible, keepspaces=true, captionpos=t, showstringspaces=false}
+
+\title{Hierarchical scale interactions in a Vision Transformer weather model: architecture versus loss}
+
+\author{%
+  Vedant Mahendra Kulkarni \\
+  University of Augsburg \\
+  \texttt{\todo{your university e-mail}} \\
+}
+
+\begin{document}
+
+\maketitle
+
+% ===================================================================================== ABSTRACT (~150 words)
+\begin{abstract}
+\todo{~150 words. (1) ViT weather models cut the globe into fixed patches and treat all scales alike, though predictability depends on scale. (2) We add hierarchical scale interactions in two ways: architecture (multi-scale embedding with a seam smoother) and objective (Laplacian-pyramid loss). (3) ERA5 5.625$^\circ$, train 2009--2015, test 2017--2019, 3 seeds, pre-registered predictions. (4) Headlines: patch seams are the dominant defect; coupling patches extends Z500 skill over climatology from 2.4 to 3.6 days; multi-scale adds 12--20\% humidity improvement; the loss trades realism for accuracy along a tunable curve. (5) One-line recommendation.}
+\end{abstract}
+
+% ===================================================================================== 1 INTRODUCTION (~350 words)
+\section{Introduction}
+\label{sec:intro}
+
+\todo{Context (~90 words): data-driven global models rival physics models \cite{lam2023graphcast, bi2023pangu, pathak2022fourcastnet, keisler2022gnn}; a Vision Transformer \cite{dosovitskiy2021vit} is a simple, common backbone. One sentence on climate relevance: skilful, cheap forecasts support early warning and adaptation.}
+
+\todo{Physics of scales (~120 words): predictability depends on scale \cite{lorenz1969predictability}; variance falls steeply with wavenumber \cite{nastrom1985climatology}. In our training data, wavenumbers $k \geq 9$ hold 3\% of Z500 variance but 47\% of precipitation variance. MSE training blurs what cannot be predicted \cite{subich2025doublepenalty}; networks favour low frequencies \cite{rahaman2019spectral}.}
+
+\todo{The gap (~70 words): the course ViT embeds all 17 variables in one $4\times4$-patch token and writes each patch out independently -- one scale for every field, no interaction below the patch size. Two entry points: what the model can represent (architecture) or what it is penalised for (loss).}
+
+\todo{Contributions (~70 words), as a short list: (i) two ways to add scale interactions, compared with the baseline over three seeds against pre-registered predictions; (ii) a spectral diagnosis showing the baseline's dominant defect is patch seams, and that fixing it extends useful skill by over a day; (iii) a recommendation.}
+
+% ===================================================================================== 2 METHODS (~650 words)
+\section{Methods}
+\label{sec:methods}
+
+\subsection{Data and protocol}
+\todo{~120 words. ERA5 \cite{hersbach2020era5} via WeatherBench 2 \cite{rasp2020weatherbench, rasp2024weatherbench2} at 5.625$^\circ$ ($32\times64$), 6-hourly. 17 variables: T2M; Z, T, Q, U, V at 850/500/250 hPa; TP6h. Train 2009--2015 (10,224 states), validate 2016, test 2017--2019 (864 initialisations, 30 h apart, cycling through 00/06/12/18 UTC). Standardisation from training years only. All runs through the course \texttt{experiment.py} \cite{thuemmel2026dlwplabs}.}
+
+\subsection{Baseline and shared training protocol}
+\todo{~150 words. Course ViT: $4\times4$ patches, 128 tokens, width 128, 4 blocks, 4 heads, 742,784 parameters. State plainly the changes from the shipped baseline, applied identically to every model: (1) predict the tendency $x + f(x)$ \cite{he2016resnet, lam2023graphcast} -- on 2016 validation, loss 1.31$\times$ vs 0.75$\times$ persistence; (2) roll-out training, 4000 single-step then 2000 four-step updates \cite{lam2023graphcast, keisler2022gnn} -- $-13\%$ Z500 RMSE at 5 days against an equal-length single-step control on 2016; (3) 7 training years, 17 variables. AdamW, lr $10^{-3}$, batch 16, warm-up then cosine decay; validation loss is plain MSE for all models.}
+
+\subsection{Way 1 -- architecture: multi-scale embedding with coupled patches}
+\todo{~150 words. Multi-scale embedding (A): embed at $2\times2$ (512 tokens) and $8\times8$ (32 tokens), concatenate, shared attention, sum the per-branch read-outs \cite{chen2021crossvit, fan2021mvit}; width 100 so parameters match (0.985$\times$). Seam smoother: $3\times3$ convolution on the output field, periodic in longitude, identity-initialised (+2,618 parameters); independent patch read-out leaves discontinuities at the patch period, analogous to checkerboard artefacts \cite{odena2016checkerboard}. A$'$ = A + smoother; B$'$ = baseline + smoother is a control. Code in Appendix~\ref{app:code}.}
+
+\subsection{Way 2 -- objective: a scale-decomposed loss}
+\todo{~120 words. Laplacian pyramid \cite{burt1983laplacian} with three bands; squared error per band, weighted, expanded back to the grid so latitude and variable weights still apply (Eq.~\ref{eq:pyramid}). Weights rise towards fine scales because their variance is small: 4/2/1 (C) and 2/1.5/1 (C$'$). The network is identical to the baseline.}
+\begin{equation}
+  \mathcal{L} = \sum_{b=1}^{3} w_b \, \big\lVert P_b(\hat{y}) - P_b(y) \big\rVert_2^2
+  \label{eq:pyramid}
+\end{equation}
+
+\subsection{Evaluation and predictions}
+\todo{~110 words. Latitude-weighted RMSE and ACC against ERA5, with persistence and WeatherBench 2 climatology as references \cite{rasp2024weatherbench2}. Two extra verifications: the zonal power-spectrum ratio forecast/ERA5 (blur vs noise) and the per-variable RMSE change. Three seeds per model; a difference counts only if all seeds agree in sign and $|\text{mean}| \geq 2\times$ the seed standard deviation, a rule fixed before results. Predictions were written before running (Appendix~\ref{app:predictions}).}
+
+\begin{table}[t]
+  \caption{Models compared. Training time is the mean per run on an Apple M1 (PyTorch MPS); testing on 2017--2019 took 24--96\,s per run. Three seeds each.}
+  \label{tab:models}
+  \centering
+  \small
+  \begin{tabular}{llrr}
+    \toprule
+    Model & Change from the baseline & Parameters & Train / run \\
+    \midrule
+    Baseline & course ViT + shared protocol & 742,784 & 17 min \\
+    A        & multi-scale embedding ($2\times2$ + $8\times8$) & 731,656 & 76 min \\
+    B$'$     & seam smoother & 745,402 & 14 min \\
+    A$'$     & multi-scale embedding + seam smoother & 734,274 & 73 min \\
+    C        & pyramid loss, weights 4/2/1 & 742,784 & 18 min \\
+    C$'$     & pyramid loss, weights 2/1.5/1 & 742,784 & 14 min \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+% ===================================================================================== 3 RESULTS (~650 words)
+\section{Results}
+\label{sec:results}
+
+\subsection{Accuracy over five days}
+\todo{~170 words. Refer to Fig.~\ref{fig:rmse} and Table~\ref{tab:skill}. Smoothed models (A$'$, B$'$) are best at every lead; Z500 beats climatology until 3.6--3.7 days vs 2.4 for the baseline, and beats persistence for all five days. A alone is worst and degrades with lead (+28\% Z500, +36\% T850 at 5 days). C and C$'$ stay close to the baseline (C: +0.8\% to +3.6\%; C$'$: within about 1\%).}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{figures/F1_rmse_z500_t850.pdf}
+  \caption{Latitude-weighted RMSE of Z500 and T850 over the 2017--2019 test period against lead time, with persistence and the WeatherBench 2 climatology. Lines: mean over three seeds; shading: range over seeds. Colour marks the model family, dashed lines the variant with a seam smoother or milder loss weights.}
+  \label{fig:rmse}
+\end{figure}
+
+\begin{table}[t]
+  \caption{Skill horizons (first lead at which the seed-mean RMSE exceeds the reference) and RMSE at 1 and 5 days. Z500 in m$^2$\,s$^{-2}$, T850 in K. Mean over three seeds.}
+  \label{tab:skill}
+  \centering
+  \small
+  \begin{tabular}{lccccc}
+    \toprule
+    & \multicolumn{2}{c}{Beats climatology until} & \multicolumn{2}{c}{Z500 RMSE} & T850 RMSE \\
+    \cmidrule(r){2-3} \cmidrule(r){4-5} \cmidrule(r){6-6}
+    Model & Z500 & T850 & 1 d & 5 d & 1 d / 5 d \\
+    \midrule
+    Baseline & 2.4 d & 1.8 d & 460 & 1016 & 2.31 / 4.47 \\
+    A        & 2.1 d & 1.6 d & 500 & 1297 & 2.43 / 6.08 \\
+    B$'$     & 3.6 d & 2.6 d & 344 & 924  & 2.02 / 4.13 \\
+    A$'$     & 3.7 d & 2.8 d & 328 & 923  & 1.91 / 4.12 \\
+    C        & 2.2 d & 1.7 d & 477 & 1024 & 2.37 / 4.46 \\
+    C$'$     & 2.3 d & 1.7 d & 465 & 1012 & 2.33 / 4.42 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsection{Why: spectra reveal patch seams}
+\todo{~180 words. Refer to Fig.~\ref{fig:spectrum}. The baseline is blurred at synoptic scales (ratio 0.5--0.8 at $k=3$--$8$) and noisy at grid scales, with a spike at $k=16=64/4$, the patch period; neighbour jumps are largest on patch boundaries. A adds spikes at its own patch periods ($k=8, 32$); spurious power at $k \geq 9$ at 5 days rises from about 144 to about 800 times ERA5 (Z500). The smoother removes 87--93\% of A's spurious power and sharpens precipitation. Justify the figure: RMSE rewards blur; the spectrum measures realism independently of where features sit.}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{figures/E1_spectrum_ratio.pdf}
+  \caption{Zonal power spectrum of the forecast divided by that of ERA5 at the same valid times, at 1 and 5 days. Below 1 the forecast has lost variance at that scale (blurring); above 1 it carries variance ERA5 does not (spurious noise). The dotted line marks $k=16$, the period of the baseline's $4\times4$ patches. Shading: range over seeds.}
+  \label{fig:spectrum}
+\end{figure}
+
+\subsection{Where: per-variable effects}
+\todo{~170 words. Refer to Fig.~\ref{fig:heatmap}. The smoother alone improves dynamical fields strongly at 1--3 days (Z500 $-25\%$, V500 $-26\%$ at 1 day) but barely touches humidity. Beyond the smoother, multi-scale improves humidity by 12--20\% at 1--3 days (label as exploratory: comparison chosen after the first seed) at a consistent T2M cost (+7--9\%). Justify the figure: the required figure covers only Z500 and T850, which hold little small-scale variance.}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{figures/E2_rmse_change_heatmap.pdf}
+  \caption{RMSE change against a reference model for every variable and lead, mean over three seeds (blue: better). Hatched cells are not robust (seeds disagree in sign, or $|\text{mean}| < 2\times$ seed standard deviation). \todo{trim to three panels for the main text: B$'$ vs baseline, A$'$ vs B$'$, C$'$ vs baseline; move the full version to the appendix.}}
+  \label{fig:heatmap}
+\end{figure}
+
+\subsection{The loss trade-off}
+\todo{~130 words. Weights 4/2/1 cut spurious small-scale power by 11--28\% for a small, robust RMSE cost (up to 3.6\%) -- the pre-registered ``no cost'' prediction failed. Weights 2/1.5/1 keep about 60--85\% of that reduction with the RMSE cost gone. Point to Fig.~\ref{fig:loss} for training behaviour and Fig.~\ref{fig:t850} for an example forecast.}
+
+\begin{figure}[t]
+  \centering
+  \fbox{\parbox[c][3.5cm][c]{0.9\linewidth}{\centering \todo{Required figure: T850 at 1-day lead -- ERA5, baseline error, A$'$ error, one initialisation, shared colour scale}}}
+  \caption{\todo{caption}}
+  \label{fig:t850}
+\end{figure}
+
+\begin{figure}[t]
+  \centering
+  \fbox{\parbox[c][3.5cm][c]{0.9\linewidth}{\centering \todo{Required figure: training and validation loss for all six models over training steps}}}
+  \caption{\todo{caption: validation loss is plain MSE and comparable across models; pyramid training losses use a different objective; the jump at step 4000 is the switch to roll-out training.}}
+  \label{fig:loss}
+\end{figure}
+
+% ===================================================================================== 4 DISCUSSION (~400 words)
+\section{Discussion}
+\label{sec:discussion}
+
+\todo{Interpretation (~130 words): the ViT's largest scale defect is how patches are written out, not missing multi-scale machinery; seams inject spurious variance that accumulates over the roll-out. Coupling neighbouring patches is the cheapest, largest win. With seams fixed, the multi-scale embedding helps where small-scale structure dominates (humidity), consistent with the inductive bias.}
+
+\todo{Predictions (~70 words): 8 of 9 pre-registered predictions held; the pyramid loss did cost accuracy. In round 1 we also wrongly expected A to remove the $k=16$ seam.}
+
+\todo{Recommendation (~100 words), as a short list: (1) always couple neighbouring patches; (2) use a multi-scale embedding when moist or small-scale fields matter, together with the smoother, and check T2M; (3) add a mild scale-aware loss for realism; (4) evaluate scale changes with spectra, not RMSE alone.}
+
+\todo{Limitations (~100 words): modest absolute skill (about 740k parameters, 5.625$^\circ$, 7 years; all models lose to climatology after 2.4--3.7 days); two protocol decisions and the second-round design were first motivated by test-year results -- all were re-checked on 2016 and the ranking holds; the A$'$ vs B$'$ comparison is exploratory; one smoother design and two loss weightings; the T2M cost is unexplained; deterministic only \cite{price2025gencast}.}
+
+% ===================================================================================== REFERENCES
+\bibliographystyle{unsrt}
+\bibliography{references}
+
+% ===================================================================================== APPENDIX
+\appendix
+
+\section{Code of the modified modules}
+\label{app:code}
+Listings are extracted automatically from the repository, with docstrings and comments removed.
+\input{appendix_code}
+
+\section{Pre-registered predictions and verdicts}
+\label{app:predictions}
+\todo{Table from explore/CLAIMS\_AND\_EVIDENCE.md, section 2.1: prediction, result, verdict.}
+
+\section{Protocol checks on the 2016 validation year}
+\label{app:validation}
+\todo{Residual check and the equal-length roll-out control, from explore/figures/validation2016.md.}
+
+\end{document}

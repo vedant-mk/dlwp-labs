@@ -9,7 +9,11 @@
 
 ---
 
-## 0. Decisions to settle before writing
+## 0. Decisions
+
+**Settled 2026-09-13:** the two ways are **A′ (architecture)** and **C′ (objective)**; write and compile in **Overleaf** (upload `paper/overleaf_upload.zip`); an email to Jannik is drafted to confirm page length and an appendix for code.
+
+### Original options considered
 
 | Decision | Recommendation | Why |
 |---|---|---|
