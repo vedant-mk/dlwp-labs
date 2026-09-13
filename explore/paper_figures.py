@@ -67,8 +67,8 @@ def figure_t850() -> None:
     errors = {run: fields[run].values - truth.values for run in F4_MODELS}
     elim = float(np.ceil(np.percentile(np.abs(np.stack(list(errors.values()))), 99)))
 
-    fig = plt.figure(figsize=(12.5, 4.8))
-    grid = fig.add_gridspec(2, 5, width_ratios=[1, 1, 1, 1, 0.035], hspace=0.35, wspace=0.08)
+    fig = plt.figure(figsize=(6.3, 2.55))
+    grid = fig.add_gridspec(2, 5, width_ratios=[1, 1, 1, 1, 0.045], hspace=0.32, wspace=0.07)
     projection = ccrs.PlateCarree(central_longitude=centre)
 
     def panel(row, col, values, cmap, lo, hi, title):
@@ -77,26 +77,26 @@ def figure_t850() -> None:
                          extent=[-180, 180, lat[0] - 2.8125, lat[-1] + 2.8125], transform=projection,
                          interpolation="nearest")
         ax.set_extent([-180, 180, -90, 90], crs=projection)
-        ax.coastlines(linewidth=0.4, color="#52514e")
-        ax.set_title(title, fontsize=9, color=INK, loc="left")
+        ax.coastlines(linewidth=0.25, color="#52514e")
+        ax.set_title(title, fontsize=6, color=INK, loc="left", pad=2)
         return mesh
 
     field_mesh = panel(0, 0, truth.values, WARM, vmin, vmax, "ERA5 (truth)")
     for col, run in enumerate(F4_MODELS, start=1):
-        panel(0, col, fields[run].values, WARM, vmin, vmax, f"{SHORT[run]} forecast")
+        panel(0, col, fields[run].values, WARM, vmin, vmax, f"{SHORT[run]}")
         error_mesh = panel(1, col, errors[run], DIVERGING, -elim, elim,
-                           f"{SHORT[run].split(' (')[0]} error · RMSE {weighted_rmse(errors[run], lat):.2f} K")
+                           f"error · RMSE {weighted_rmse(errors[run], lat):.2f} K")
 
     key = fig.add_subplot(grid[1, 0]); key.axis("off")
     stamp = pd.Timestamp(init)
     key.text(0.0, 0.95, f"T850, 1-day lead\ninitialised {stamp:%Y-%m-%d %H} UTC\nvalid {stamp + pd.Timedelta(hours=24):%Y-%m-%d %H} UTC\nseed 0\n\nerrors: blue = too cold,\nred = too warm",
-             va="top", fontsize=8.5, color=INK_2)
+             va="top", fontsize=5.5, color=INK_2)
     cb1 = fig.colorbar(field_mesh, cax=fig.add_subplot(grid[0, 4]))
-    cb1.set_label("T850 (K)", fontsize=8, color=INK_2)
+    cb1.set_label("T850 (K)", fontsize=6, color=INK_2)
     cb2 = fig.colorbar(error_mesh, cax=fig.add_subplot(grid[1, 4]), extend="both")
-    cb2.set_label("forecast − ERA5 (K)", fontsize=8, color=INK_2)
+    cb2.set_label("error (K)", fontsize=6, color=INK_2)
     for cb in (cb1, cb2):
-        cb.ax.tick_params(labelsize=7, colors=MUTED, labelcolor=INK_2)
+        cb.ax.tick_params(labelsize=5.5, colors=MUTED, labelcolor=INK_2)
         cb.outline.set_visible(False)
     for ext in ("png", "pdf"):
         fig.savefig(OUT / f"F4_t850_forecast_24h.{ext}", dpi=200, bbox_inches="tight")
@@ -107,7 +107,7 @@ def figure_t850() -> None:
 
 
 def figure_losses() -> None:
-    fig, axes = plt.subplots(1, 2, figsize=(10.5, 3.9))
+    fig, axes = plt.subplots(1, 2, figsize=(6.3, 2.7))
     for run, (name, colour, style_) in RUNS.items():
         seeds = seeds_of(run)
         logs = pd.concat(pd.read_csv(Path("runs") / run / f"seed{s}" / "metrics.csv").assign(seed=s) for s in seeds)
@@ -117,17 +117,16 @@ def figure_losses() -> None:
                   .apply(lambda g: g.assign(loss=g["train/loss"].rolling(25, min_periods=1).mean())))
         t = smooth.groupby("step").loss.agg(["mean", "min", "max"])
         axes[0].fill_between(t.index, t["min"], t["max"], color=colour, alpha=0.12, linewidth=0)
-        axes[0].plot(t.index, t["mean"], color=colour, linestyle=style_, linewidth=1.5, label=f"{name} ({len(seeds)} seeds)")
+        axes[0].plot(t.index, t["mean"], color=colour, linestyle=style_, linewidth=1.0, label=name)
 
         v = logs.dropna(subset=["val/loss_step1"]).groupby("step")["val/loss_step1"].agg(["mean", "min", "max"])
         axes[1].fill_between(v.index, v["min"], v["max"], color=colour, alpha=0.12, linewidth=0)
-        axes[1].plot(v.index, v["mean"], color=colour, linestyle=style_, linewidth=1.5, marker="o", markersize=3)
+        axes[1].plot(v.index, v["mean"], color=colour, linestyle=style_, linewidth=1.0, marker="o", markersize=1.8)
 
-    titles = ["Training loss (each model's own objective)",
-              "Validation loss, 2016 (plain MSE, comparable)"]
+    titles = ["Training loss (own objective)", "Validation loss, 2016 (plain MSE)"]
     for ax, title in zip(axes, titles):
-        ax.axvline(ROLLOUT_STEP, color=MUTED, linestyle=":", linewidth=1)
-        ax.text(ROLLOUT_STEP + 60, 0.97, "roll-out\ntraining", transform=ax.get_xaxis_transform(), fontsize=7,
+        ax.axvline(ROLLOUT_STEP, color=MUTED, linestyle=":", linewidth=0.8)
+        ax.text(ROLLOUT_STEP + 60, 0.97, "roll-out\ntraining", transform=ax.get_xaxis_transform(), fontsize=5.5,
                 color=MUTED, va="top")
         ax.set_yscale("log")
         ax.yaxis.set_major_formatter(FuncFormatter(lambda y, _: f"{y:g}"))
@@ -138,25 +137,23 @@ def figure_losses() -> None:
             ax.spines[side].set_visible(False)
         for side in ("left", "bottom"):
             ax.spines[side].set_color(AXIS)
-        ax.tick_params(colors=MUTED, labelcolor=INK_2, labelsize=8)
-        ax.tick_params(which="minor", colors=MUTED, labelcolor=INK_2, labelsize=8)
-        ax.grid(color=GRID, linewidth=0.6, which="both")
+        ax.tick_params(colors=MUTED, labelcolor=INK_2, labelsize=6.5)
+        ax.tick_params(which="minor", colors=MUTED, labelcolor=INK_2, labelsize=6.5)
+        ax.grid(color=GRID, linewidth=0.4, which="both")
         ax.set_axisbelow(True)
-        ax.set_xlabel("training step", color=INK_2, fontsize=9)
-        ax.set_ylabel("loss (standardised units)", color=INK_2, fontsize=9)
-        ax.set_title(title, fontsize=8.5, color=INK, loc="left")
+        ax.set_xlabel("training step", color=INK_2, fontsize=7)
+        ax.set_ylabel("loss (standardised)", color=INK_2, fontsize=7)
+        ax.set_title(title, fontsize=7.5, color=INK, loc="left")
         epochs = ax.secondary_xaxis("top", functions=(lambda s: s / STEPS_PER_EPOCH, lambda e: e * STEPS_PER_EPOCH))
-        epochs.set_xlabel(f"epoch ({STEPS_PER_EPOCH} steps)", color=MUTED, fontsize=8)
-        epochs.tick_params(colors=MUTED, labelcolor=MUTED, labelsize=7)
+        epochs.set_xlabel("epoch", color=MUTED, fontsize=6)
+        epochs.tick_params(colors=MUTED, labelcolor=MUTED, labelsize=5.5)
         epochs.spines["top"].set_color(AXIS)
     axes[0].set_ylim(top=1.0)
 
     handles, labels = axes[0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc="upper center", ncol=3, frameon=False, fontsize=8, bbox_to_anchor=(0.5, 1.13),
-               labelcolor=INK_2)
-    fig.text(0.01, -0.03, "Lines: mean over seeds (training loss smoothed over 250 steps); shading: range over seeds.",
-             fontsize=8, color=MUTED)
-    fig.tight_layout()
+    fig.legend(handles, labels, loc="upper center", ncol=3, frameon=False, fontsize=6, bbox_to_anchor=(0.5, 1.12),
+               labelcolor=INK_2, handlelength=2.5, columnspacing=1.0)
+    fig.tight_layout(pad=0.4, w_pad=1.2)
     for ext in ("png", "pdf"):
         fig.savefig(OUT / f"F5_loss_curves.{ext}", dpi=200, bbox_inches="tight")
     plt.close(fig)

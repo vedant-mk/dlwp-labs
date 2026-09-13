@@ -28,6 +28,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from utils.metrics import truth_at
 
 xr.set_options(use_bottleneck=False)
+# embed TrueType, not Type 3, so the PDFs meet the template's font rule
+plt.rcParams.update({"pdf.fonttype": 42, "ps.fonttype": 42})
 
 OUT = Path("explore/figures")
 # colour = model family, line style = version; six hues fail colour-blind separation across all pairs,
@@ -43,15 +45,15 @@ RUNS = {  # fixed order: colour follows the model, never its rank
 }
 # the three panels the paper's main text uses; the full COMPARISONS set goes to the appendix
 PAPER_COMPARISONS = [
-    ("baseline17_smooth", "baseline17", "B′ vs baseline (seam smoother)"),
-    ("multiscale_smooth", "baseline17_smooth", "A′ vs B′ (multi-scale on top)"),
-    ("pyramid_w2", "baseline17", "C′ vs baseline (pyramid loss)"),
+    ("baseline17_smooth", "baseline17", "B′ vs baseline"),
+    ("multiscale_smooth", "baseline17_smooth", "A′ vs B′"),
+    ("pyramid_w2", "baseline17", "C′ vs baseline"),
 ]
 # heatmap panels: (model, reference, title); A' is set against B' to isolate what multi-scale adds
 COMPARISONS = [
-    ("baseline17_smooth", "baseline17", "B′ vs baseline: the seam smoother alone"),
+    ("baseline17_smooth", "baseline17", "B′ vs baseline"),
     ("multiscale", "baseline17", "A vs baseline"),
-    ("multiscale_smooth", "baseline17_smooth", "A′ vs B′: multi-scale beyond the smoother"),
+    ("multiscale_smooth", "baseline17_smooth", "A′ vs B′"),
     ("pyramid", "baseline17", "C vs baseline"),
     ("pyramid_w2", "baseline17", "C′ vs baseline"),
 ]
@@ -72,8 +74,8 @@ def style(ax):
         ax.spines[side].set_visible(False)
     for side in ("left", "bottom"):
         ax.spines[side].set_color(AXIS)
-    ax.tick_params(colors=MUTED, labelcolor=INK_2, labelsize=8)
-    ax.grid(color=GRID, linewidth=0.6)
+    ax.tick_params(colors=MUTED, labelcolor=INK_2, labelsize=6.5)
+    ax.grid(color=GRID, linewidth=0.5)
     ax.set_axisbelow(True)
 
 
@@ -121,7 +123,7 @@ def figure_spectra(runs: list, era5: xr.Dataset) -> pd.DataFrame:
     k = np.arange(1, 33)
     rows = []
     fig, axes = plt.subplots(len(SPECTRUM_LEADS), len(SPECTRUM_VARIABLES),
-                             figsize=(11, 5.2), sharex=True, squeeze=False)
+                             figsize=(6.3, 3.5), sharex=True, squeeze=False)
     for run in runs:
         for seed in seeds_of(run):
             sample = forecast_sample(run, seed)
@@ -141,39 +143,35 @@ def figure_spectra(runs: list, era5: xr.Dataset) -> pd.DataFrame:
                 g = table[(table.run == run) & (table.lead_hours == lead) & (table.variable == var)]
                 stats = g.groupby("wavenumber").power_ratio.agg(["mean", "min", "max"])
                 axes[i, j].fill_between(stats.index, stats["min"], stats["max"], color=colour, alpha=0.12, linewidth=0)
-                axes[i, j].plot(stats.index, stats["mean"], color=colour, linewidth=1.8, linestyle=style_,
-                                label=f"{name} ({n} seeds)")
+                axes[i, j].plot(stats.index, stats["mean"], color=colour, linewidth=1.2, linestyle=style_,
+                                label=name)
 
     for i, lead in enumerate(SPECTRUM_LEADS):
         for j, var in enumerate(SPECTRUM_VARIABLES):
             ax = axes[i, j]
             style(ax)
-            ax.axhline(1.0, color=INK, linewidth=1, linestyle="--")
+            ax.axhline(1.0, color=INK, linewidth=0.8, linestyle="--")
             # the baseline's 4x4 patches repeat 64 / 4 = 16 times round a latitude circle
-            ax.axvline(16, color=MUTED, linewidth=1, linestyle=":")
+            ax.axvline(16, color=MUTED, linewidth=0.8, linestyle=":")
             ax.set_xscale("log")
             ax.set_yscale("log")
             ax.set_xticks([1, 2, 4, 8, 16, 32])
             ax.set_xticklabels(["1", "2", "4", "8", "16", "32"])
             ax.minorticks_off()
             if i == 0:
-                ax.set_title(var, color=INK, fontsize=10, loc="left")
+                ax.set_title(var, color=INK, fontsize=8, loc="left")
             if j == 0:
-                ax.set_ylabel(f"lead {lead // 24} d\nforecast / ERA5 power", color=INK_2, fontsize=9)
+                ax.set_ylabel(f"{lead // 24}-day lead\nforecast / ERA5", color=INK_2, fontsize=7)
             if i == len(SPECTRUM_LEADS) - 1:
-                ax.set_xlabel("zonal wavenumber k", color=INK_2, fontsize=9)
-    axes[0, 0].text(1.1, 1.15, "ERA5 = 1", color=INK, fontsize=8)
-    axes[0, 0].text(15, 0.9, "4×4 patch\nperiod", color=MUTED, fontsize=7, ha="right", va="top",
+                ax.set_xlabel("zonal wavenumber k", color=INK_2, fontsize=7)
+    axes[0, 0].text(1.1, 1.15, "ERA5 = 1", color=INK, fontsize=6)
+    axes[0, 0].text(15, 0.9, "4×4 patch\nperiod", color=MUTED, fontsize=5.5, ha="right", va="top",
                     transform=axes[0, 0].get_xaxis_transform())
 
     handles, labels = axes[0, 0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc="upper center", ncol=3, frameon=False, fontsize=8.5,
-               bbox_to_anchor=(0.5, 1.07), labelcolor=INK_2)
-    fig.suptitle("Below the dashed line the forecast has lost variance at that scale (blurring); "
-                 "above it, it carries variance ERA5 does not (spurious noise). Shading: range over seeds. "
-                 f"Wavelength at the equator = {EARTH_CIRCUMFERENCE_KM:,} km / k.",
-                 y=-0.01, fontsize=8, color=MUTED)
-    fig.tight_layout(rect=(0, 0.02, 1, 0.95))
+    fig.legend(handles, labels, loc="upper center", ncol=3, frameon=False, fontsize=6.5,
+               bbox_to_anchor=(0.5, 1.1), labelcolor=INK_2, handlelength=2.5, columnspacing=1.2)
+    fig.tight_layout(pad=0.4, h_pad=0.6, w_pad=0.4)
     for ext in ("png", "pdf"):
         fig.savefig(OUT / f"E1_spectrum_ratio.{ext}", dpi=200, bbox_inches="tight")
     plt.close(fig)
@@ -198,10 +196,10 @@ def figure_heatmap(runs: list, comparisons: list = None, filename: str = "E2_rms
 
     ncols = 3
     nrows = -(-len(panels) // ncols)
-    fig, axes = plt.subplots(nrows, ncols, figsize=(5.0 * ncols, 5.2 * nrows), squeeze=False)
+    fig, axes = plt.subplots(nrows, ncols, figsize=(6.3, 3.1 * nrows), squeeze=False)
     table = []
     limit = 30
-    for ax, (run, reference, title) in zip(axes.flat, panels):
+    for index, (ax, (run, reference, title)) in enumerate(zip(axes.flat, panels)):
         change = ((rmse[run] - rmse[reference]) / rmse[reference] * 100).dropna()
         summary = change.groupby(["variable", "lead_hours"]).agg(
             mean="mean", std=lambda v: v.std(ddof=1), seeds="count", real=is_real).reset_index()
@@ -212,32 +210,33 @@ def figure_heatmap(runs: list, comparisons: list = None, filename: str = "E2_rms
         for (row, col), ok in np.ndenumerate(real.values):   # hatch what fails the pre-registered rule
             if not ok:
                 ax.add_patch(plt.Rectangle((col - 0.5, row - 0.5), 1, 1, fill=False, hatch="////",
-                                           edgecolor="#898781", linewidth=0))
-        ax.set_title(f"{title}  ({int(summary.seeds.max())} seeds)", color=INK, fontsize=9.5, loc="left")
+                                           edgecolor="#898781", linewidth=0, alpha=0.8))
+        ax.set_title(title, color=INK, fontsize=8, loc="left")
         ax.set_yticks(range(len(HEATMAP_ORDER)))
-        ax.set_yticklabels(HEATMAP_ORDER, fontsize=8, color=INK_2)
+        ax.set_yticklabels(HEATMAP_ORDER if index % ncols == 0 else [], fontsize=6, color=INK_2)
         ticks = [i for i, h in enumerate(leads) if h % 24 == 0]
         ax.set_xticks(ticks)
-        ax.set_xticklabels([f"{int(leads[i] // 24)}" for i in ticks], fontsize=8, color=INK_2)
-        ax.set_xlabel("lead time (days)", color=INK_2, fontsize=9)
+        ax.set_xticklabels([f"{int(leads[i] // 24)}" for i in ticks], fontsize=6.5, color=INK_2)
+        ax.set_xlabel("lead time (days)", color=INK_2, fontsize=7)
         for boundary in (2.5, 6.5, 9.5, 12.5):   # separate Z | T | U | V | Q+TP
-            ax.axhline(boundary, color="#ffffff", linewidth=2)
+            ax.axhline(boundary, color="#ffffff", linewidth=1.2)
         for spine in ax.spines.values():
             spine.set_visible(False)
         ax.tick_params(length=0)
         last = len(leads) - 1
         for row, value in enumerate(grid.values[:, last]):
-            ax.text(last, row, f"{value:+.0f}", ha="center", va="center", fontsize=6,
+            ax.text(last, row, f"{value:+.0f}", ha="center", va="center", fontsize=4.5,
                     color=INK if abs(value) < 0.6 * limit else "#ffffff")
     for ax in list(axes.flat)[len(panels):]:
         ax.axis("off")
 
-    bar = fig.colorbar(image, ax=axes.ravel().tolist(), shrink=0.6, pad=0.02, extend="both")
-    bar.set_label("RMSE change vs reference (%)   blue = better, red = worse", color=INK_2, fontsize=9)
-    bar.ax.tick_params(labelsize=8, colors=MUTED, labelcolor=INK_2)
+    if nrows > 1:
+        fig.subplots_adjust(hspace=0.38)   # room between a row's axis label and the next row's titles
+    bar = fig.colorbar(image, ax=axes.ravel().tolist(), shrink=0.9 if nrows == 1 else 0.6, pad=0.02,
+                       fraction=0.03, extend="both")
+    bar.set_label("RMSE change (%)\nblue better, red worse", color=INK_2, fontsize=6.5)
+    bar.ax.tick_params(labelsize=6, colors=MUTED, labelcolor=INK_2)
     bar.outline.set_visible(False)
-    fig.text(0.01, 0.0, "Hatched: not a robust difference (seeds disagree in sign, or |mean| < 2 x seed std). "
-             "Seeds are paired by index.", fontsize=8, color=MUTED)
     for ext in ("png", "pdf"):
         fig.savefig(OUT / f"{filename}.{ext}", dpi=200, bbox_inches="tight")
     plt.close(fig)

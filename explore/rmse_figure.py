@@ -32,7 +32,7 @@ def main() -> None:
     scores = pd.concat(rows)
     scores["lead_days"] = scores.lead_hours / 24
 
-    fig, axes = plt.subplots(1, 2, figsize=(10.5, 4.4))
+    fig, axes = plt.subplots(1, 2, figsize=(6.3, 2.8))
     table = []
     for ax, (var, ylabel) in zip(axes, VARIABLES.items()):
         v = scores[scores.variable == var]
@@ -43,38 +43,35 @@ def main() -> None:
             stats = m.agg(["mean", "min", "max", "std", "count"])
             table.append(stats.reset_index().assign(variable=var, model=run))
             ax.fill_between(stats.index, stats["min"], stats["max"], color=colour, alpha=0.15, linewidth=0)
-            ax.plot(stats.index, stats["mean"], color=colour, linewidth=1.8, linestyle=style_,
-                    label=f"{name} ({int(stats['count'].max())} seeds)")
+            ax.plot(stats.index, stats["mean"], color=colour, linewidth=1.2, linestyle=style_, label=name)
 
         references = v[v.run == "baseline17"].groupby(["metric", "lead_days"]).value.first()
         for metric, style_, label in (("rmse_persistence", "-.", "Persistence"),
                                       ("rmse_climatology", ":", "WB2 climatology")):
             ref = references[metric]
-            ax.plot(ref.index, ref.values, style_, color=INK, linewidth=1.3, label=label)
+            ax.plot(ref.index, ref.values, style_, color=INK, linewidth=0.9, label=label)
             ax.annotate(label, (ref.index[-1], ref.values[-1]), xytext=(4, 0), textcoords="offset points",
-                        fontsize=7, color=INK_2, va="center")
+                        fontsize=5.5, color=INK_2, va="center")
             table.append(ref.rename("mean").reset_index().assign(variable=var, model=metric))
 
         for side in ("top", "right"):
             ax.spines[side].set_visible(False)
         for side in ("left", "bottom"):
             ax.spines[side].set_color(AXIS)
-        ax.tick_params(colors=MUTED, labelcolor=INK_2, labelsize=8)
-        ax.grid(color=GRID, linewidth=0.6)
+        ax.tick_params(colors=MUTED, labelcolor=INK_2, labelsize=6.5)
+        ax.grid(color=GRID, linewidth=0.5)
         ax.set_axisbelow(True)
         ax.set_xlim(0, 5.9)
         ax.set_ylim(bottom=0)
         ax.set_xticks(range(6))
-        ax.set_xlabel("lead time (days)", color=INK_2, fontsize=9)
-        ax.set_ylabel(ylabel, color=INK_2, fontsize=9)
-        ax.set_title(var, color=INK, fontsize=10, loc="left")
+        ax.set_xlabel("lead time (days)", color=INK_2, fontsize=7)
+        ax.set_ylabel(ylabel, color=INK_2, fontsize=7)
+        ax.set_title(var, color=INK, fontsize=8, loc="left")
 
     handles, labels = axes[0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc="upper center", ncol=4, frameon=False, fontsize=8,
-               bbox_to_anchor=(0.5, 1.12), labelcolor=INK_2)
-    fig.text(0.01, -0.02, "Test years 2017–2019, 864 initialisations. Lines: seed mean; shading: range over seeds.",
-             fontsize=8, color=MUTED)
-    fig.tight_layout()
+    fig.legend(handles, labels, loc="upper center", ncol=4, frameon=False, fontsize=6,
+               bbox_to_anchor=(0.5, 1.16), labelcolor=INK_2, handlelength=2.5, columnspacing=1.0)
+    fig.tight_layout(pad=0.4, w_pad=1.0)
     for ext in ("png", "pdf"):
         fig.savefig(OUT / f"F1_rmse_z500_t850.{ext}", dpi=200, bbox_inches="tight")
     plt.close(fig)

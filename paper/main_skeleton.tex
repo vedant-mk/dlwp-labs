@@ -16,6 +16,7 @@
 \usepackage{graphicx}
 \usepackage{xcolor}
 \usepackage{listings}
+\usepackage{float}      % [H]: pin a figure exactly where it is written
 
 % Visible writing prompts. Delete each one as you replace it with your own text.
 \newcommand{\todo}[1]{\textcolor{red}{[TODO: #1]}}
@@ -135,7 +136,7 @@
 \begin{figure}[t]
   \centering
   \includegraphics[width=\linewidth]{figures/E1_spectrum_ratio.pdf}
-  \caption{Zonal power spectrum of the forecast divided by that of ERA5 at the same valid times, at 1 and 5 days. Below 1 the forecast has lost variance at that scale (blurring); above 1 it carries variance ERA5 does not (spurious noise). The dotted line marks $k=16$, the period of the baseline's $4\times4$ patches. Shading: range over seeds.}
+  \caption{Zonal power spectrum of the forecast divided by that of ERA5 at the same valid times, at 1 and 5 days. Below 1 the forecast has lost variance at that scale (blurring); above 1 it carries variance ERA5 does not (spurious noise). The dotted line marks $k=16$, the period of the baseline's $4\times4$ patches; wavelength at the equator is about $40{,}000\,\text{km}/k$. Lines: mean over three seeds (spectra from every fourth test initialisation); shading: range over seeds.}
   \label{fig:spectrum}
 \end{figure}
 
@@ -145,7 +146,7 @@
 \begin{figure}[t]
   \centering
   \includegraphics[width=\linewidth]{figures/E2_rmse_change_heatmap_paper.pdf}
-  \caption{RMSE change against a reference model for every variable and lead, mean over three seeds (blue: better). Left: the seam smoother alone (B$'$ vs baseline). Centre: what the multi-scale embedding adds on top of it (A$'$ vs B$'$; exploratory comparison). Right: the mild pyramid loss (C$'$ vs baseline). Hatched cells are not robust (seeds disagree in sign, or $|\text{mean}| < 2\times$ seed standard deviation). All comparisons in Appendix~\ref{app:heatmap}.}
+  \caption{RMSE change against a reference model for every variable and lead, mean over three seeds (blue: better). Left: the seam smoother alone (B$'$ vs baseline). Centre: what the multi-scale embedding adds on top of it (A$'$ vs B$'$; exploratory comparison). Right: the mild pyramid loss (C$'$ vs baseline). Hatched cells are not robust (seeds disagree in sign, or $|\text{mean}| < 2\times$ seed standard deviation). The 5-day value is printed at the right of each row. All comparisons in Appendix~\ref{app:heatmap}.}
   \label{fig:heatmap}
 \end{figure}
 
@@ -155,14 +156,14 @@
 \begin{figure}[t]
   \centering
   \includegraphics[width=\linewidth]{figures/F4_t850_forecast_24h.pdf}
-  \caption{T850 at 1-day lead for the first test initialisation (1 January 2017, 00\,UTC; seed 0). Top: ERA5 and the forecasts of the baseline and the two ways, A$'$ (architecture) and C$'$ (loss), on one colour scale. Bottom: forecast minus ERA5 (blue: too cold, red: too warm) with the latitude-weighted RMSE of this forecast.}
+  \caption{T850 at 1-day lead for the first test initialisation (1 January 2017, 00\,UTC; seed 0). Top: ERA5 and the forecasts of the baseline and the two ways, A$'$ (architecture) and C$'$ (loss), on one colour scale. Bottom, under each forecast: forecast minus ERA5 (blue: too cold, red: too warm) with the latitude-weighted RMSE of this forecast.}
   \label{fig:t850}
 \end{figure}
 
 \begin{figure}[t]
   \centering
   \includegraphics[width=\linewidth]{figures/F5_loss_curves.pdf}
-  \caption{Training (left) and validation (right) loss over training steps and epochs; mean over three seeds with the range shaded. Validation is plain one-step MSE on 2016 and compares across models; the training losses of C and C$'$ are their own pyramid objective. The rise at step 4000 is the switch from single-step to four-step roll-out training, whose loss averages errors over four steps.}
+  \caption{Training (left) and validation (right) loss over training steps and epochs (top axis, 638 steps each); mean over three seeds with the range shaded, training loss smoothed over 250 steps. Validation is plain one-step MSE on 2016 and compares across models; the training losses of C and C$'$ are their own pyramid objective. The rise at step 4000 is the switch from single-step to four-step roll-out training, whose loss averages errors over four steps.}
   \label{fig:loss}
 \end{figure}
 
@@ -179,6 +180,8 @@
 \todo{Limitations (~100 words): modest absolute skill (about 740k parameters, 5.625$^\circ$, 7 years; all models lose to climatology after 2.4--3.7 days); two protocol decisions and the second-round design were first motivated by test-year results -- all were re-checked on 2016 and the ranking holds; the A$'$ vs B$'$ comparison is exploratory; one smoother design and two loss weightings; the T2M cost is unexplained; deterministic only \cite{price2025gencast}.}
 
 % ===================================================================================== REFERENCES
+% place every pending figure before the references start
+\clearpage
 \bibliographystyle{unsrt}
 \bibliography{references}
 
@@ -188,14 +191,16 @@
 \section{Code of the modified modules}
 \label{app:code}
 Listings are extracted automatically from the repository, with docstrings and comments removed.
+% keep each listing whole with its caption, and let pages end short rather than stretch the gaps
+\raggedbottom
 \input{appendix_code}
 
 \section{All per-variable comparisons}
 \label{app:heatmap}
-\begin{figure}[h]
+\begin{figure}[H]
   \centering
   \includegraphics[width=\linewidth]{figures/E2_rmse_change_heatmap.pdf}
-  \caption{RMSE change for all five comparisons, including the original multi-scale model A and the strong pyramid weights C. Mean over three seeds; hatching as in Fig.~\ref{fig:heatmap}.}
+  \caption{RMSE change for all five comparisons: B$'$ vs baseline, A vs baseline, A$'$ vs B$'$ (top); C vs baseline, C$'$ vs baseline (bottom). Mean over three seeds; hatching as in Fig.~\ref{fig:heatmap}.}
 \end{figure}
 
 \section{Pre-registered predictions and verdicts}
