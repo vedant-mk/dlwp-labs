@@ -761,6 +761,7 @@ Try each in under a minute, without notes.
 | `explore/REFERENCES.md` · `references.bib` | Papers and what each supports |
 | `explore/extra_figures.py` | E1 and E2 |
 | `explore/rmse_figure.py` | F1: required RMSE figure over seeds |
+| `explore/paper_figures.py` | F4 T850 forecast at 1 day, F5 loss curves (both required) |
 | `explore/diagnose_baseline.py` | Residual vs no-residual diagnostic |
 | `explore/run_seeds.py` | Overnight seed driver |
 | `explore/seed_analysis.py` · `figures/seed_analysis.md` | Hypotheses judged against 3 seeds |
@@ -779,6 +780,7 @@ Try each in under a minute, without notes.
 | Date | Added |
 |---|---|
 | 2026-09-12 | First version: sections 1–21, covering everything up to seed-0 results and the start of seeds 1–2 |
+| 2026-09-13 | All required figures made (F4 T850 forecast, F5 loss curves) and a 3-panel paper heatmap |
 | 2026-09-13 | Paper set up: framing A′ (architecture) vs C′ (loss); Overleaf; outline and LaTeX skeleton |
 | 2026-09-13 | Added `CLAIMS_AND_EVIDENCE.md` (claims ledger for writing); hardware confirmed as Apple M1 |
 | 2026-09-13 | Round 2 (§16.5): seam smoother, A′/B′/C′, P6–P9 all hold, measured skill horizons; open questions, timeline, lessons, self-test, repo map updated |

@@ -201,13 +201,13 @@ Expected citations: lam2023graphcast, bi2023pangu, pathak2022fourcastnet, keisle
 |---|---|
 | Fig. 1 RMSE (required) | ✅ exists |
 | Fig. 2 spectrum ratio (extra 1) | ✅ exists |
-| Fig. 3 heatmap, trimmed to 3 panels | 🟡 make paper version |
-| Fig. 4 T850 at 1 day, combined (required) | ⬜ to make |
-| Fig. 5 loss curves, combined (required) | ⬜ to make |
+| Fig. 3 heatmap, trimmed to 3 panels | ✅ `E2_rmse_change_heatmap_paper.pdf` (full version in appendix) |
+| Fig. 4 T850 at 1 day, combined (required) | ✅ `F4_t850_forecast_24h.pdf` |
+| Fig. 5 loss curves, combined (required) | ✅ `F5_loss_curves.pdf` |
 | Table 1 models / params / runtime | ✅ numbers ready |
 | Table 2 skill horizons | ✅ numbers ready |
-| Appendix code listings | ⬜ to extract |
-| LaTeX project (template + `main.tex` + `references.bib` + figures) | ⬜ set up in `paper/` or Overleaf |
+| Appendix code listings | ✅ extracted by `build_overleaf.py` |
+| LaTeX project (template + `main.tex` + `references.bib` + figures) | ✅ `paper/overleaf_upload.zip` |
 | Reference verification | ⬜ before submission |
 
 ## Suggested schedule
