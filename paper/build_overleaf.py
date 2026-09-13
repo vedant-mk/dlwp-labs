@@ -14,7 +14,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "paper" / "overleaf"
-FIGURES = ["F1_rmse_z500_t850.pdf", "E1_spectrum_ratio.pdf", "E2_rmse_change_heatmap.pdf"]
+FIGURES = ["F1_rmse_z500_t850.pdf", "E1_spectrum_ratio.pdf", "E2_rmse_change_heatmap_paper.pdf",
+           "E2_rmse_change_heatmap.pdf", "F4_t850_forecast_24h.pdf", "F5_loss_curves.pdf"]
 LISTINGS = [  # (file, definition name, caption)
     ("utils/components.py", "SeamSmoother", "Seam smoother: a 3$\\times$3 convolution on the output field, periodic in longitude, initialised as the identity."),
     ("utils/components.py", "MultiScaleViT", "Multi-scale embedding (A): tokens at several patch sizes share attention; the per-scale read-outs are summed."),

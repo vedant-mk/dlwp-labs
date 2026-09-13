@@ -144,8 +144,8 @@
 
 \begin{figure}[t]
   \centering
-  \includegraphics[width=\linewidth]{figures/E2_rmse_change_heatmap.pdf}
-  \caption{RMSE change against a reference model for every variable and lead, mean over three seeds (blue: better). Hatched cells are not robust (seeds disagree in sign, or $|\text{mean}| < 2\times$ seed standard deviation). \todo{trim to three panels for the main text: B$'$ vs baseline, A$'$ vs B$'$, C$'$ vs baseline; move the full version to the appendix.}}
+  \includegraphics[width=\linewidth]{figures/E2_rmse_change_heatmap_paper.pdf}
+  \caption{RMSE change against a reference model for every variable and lead, mean over three seeds (blue: better). Left: the seam smoother alone (B$'$ vs baseline). Centre: what the multi-scale embedding adds on top of it (A$'$ vs B$'$; exploratory comparison). Right: the mild pyramid loss (C$'$ vs baseline). Hatched cells are not robust (seeds disagree in sign, or $|\text{mean}| < 2\times$ seed standard deviation). All comparisons in Appendix~\ref{app:heatmap}.}
   \label{fig:heatmap}
 \end{figure}
 
@@ -154,15 +154,15 @@
 
 \begin{figure}[t]
   \centering
-  \fbox{\parbox[c][3.5cm][c]{0.9\linewidth}{\centering \todo{Required figure: T850 at 1-day lead -- ERA5, baseline error, A$'$ error, one initialisation, shared colour scale}}}
-  \caption{\todo{caption}}
+  \includegraphics[width=\linewidth]{figures/F4_t850_forecast_24h.pdf}
+  \caption{T850 at 1-day lead for the first test initialisation (1 January 2017, 00\,UTC; seed 0). Top: ERA5 and the forecasts of the baseline and the two ways, A$'$ (architecture) and C$'$ (loss), on one colour scale. Bottom: forecast minus ERA5 (blue: too cold, red: too warm) with the latitude-weighted RMSE of this forecast.}
   \label{fig:t850}
 \end{figure}
 
 \begin{figure}[t]
   \centering
-  \fbox{\parbox[c][3.5cm][c]{0.9\linewidth}{\centering \todo{Required figure: training and validation loss for all six models over training steps}}}
-  \caption{\todo{caption: validation loss is plain MSE and comparable across models; pyramid training losses use a different objective; the jump at step 4000 is the switch to roll-out training.}}
+  \includegraphics[width=\linewidth]{figures/F5_loss_curves.pdf}
+  \caption{Training (left) and validation (right) loss over training steps and epochs; mean over three seeds with the range shaded. Validation is plain one-step MSE on 2016 and compares across models; the training losses of C and C$'$ are their own pyramid objective. The rise at step 4000 is the switch from single-step to four-step roll-out training, whose loss averages errors over four steps.}
   \label{fig:loss}
 \end{figure}
 
@@ -189,6 +189,14 @@
 \label{app:code}
 Listings are extracted automatically from the repository, with docstrings and comments removed.
 \input{appendix_code}
+
+\section{All per-variable comparisons}
+\label{app:heatmap}
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=\linewidth]{figures/E2_rmse_change_heatmap.pdf}
+  \caption{RMSE change for all five comparisons, including the original multi-scale model A and the strong pyramid weights C. Mean over three seeds; hatching as in Fig.~\ref{fig:heatmap}.}
+\end{figure}
 
 \section{Pre-registered predictions and verdicts}
 \label{app:predictions}

@@ -41,6 +41,12 @@ RUNS = {  # fixed order: colour follows the model, never its rank
     "pyramid": ("C: pyramid loss 4/2/1", AQUA, "-"),
     "pyramid_w2": ("C′: pyramid loss 2/1.5/1", AQUA, "--"),
 }
+# the three panels the paper's main text uses; the full COMPARISONS set goes to the appendix
+PAPER_COMPARISONS = [
+    ("baseline17_smooth", "baseline17", "B′ vs baseline (seam smoother)"),
+    ("multiscale_smooth", "baseline17_smooth", "A′ vs B′ (multi-scale on top)"),
+    ("pyramid_w2", "baseline17", "C′ vs baseline (pyramid loss)"),
+]
 # heatmap panels: (model, reference, title); A' is set against B' to isolate what multi-scale adds
 COMPARISONS = [
     ("baseline17_smooth", "baseline17", "B′ vs baseline: the seam smoother alone"),
@@ -179,7 +185,8 @@ DIVERGING = LinearSegmentedColormap.from_list(  # blue = better (lower RMSE), re
     "better_worse", ["#1c5cab", "#86b6ef", "#f0efec", "#ec8f8e", "#b73a3a"])
 
 
-def figure_heatmap(runs: list) -> pd.DataFrame:
+def figure_heatmap(runs: list, comparisons: list = None, filename: str = "E2_rmse_change_heatmap") -> pd.DataFrame:
+    comparisons = comparisons or COMPARISONS
     per_seed = []
     for run in runs:
         for seed in seeds_of(run):
@@ -187,7 +194,7 @@ def figure_heatmap(runs: list) -> pd.DataFrame:
             per_seed.append(d[d.metric == "rmse"].assign(seed=seed))
     rmse = pd.concat(per_seed).pivot_table(index=["variable", "lead_hours", "seed"], columns="run", values="value")
     leads = sorted(rmse.index.get_level_values("lead_hours").unique())
-    panels = [c for c in COMPARISONS if c[0] in runs and c[1] in runs]
+    panels = [c for c in comparisons if c[0] in runs and c[1] in runs]
 
     ncols = 3
     nrows = -(-len(panels) // ncols)
@@ -232,7 +239,7 @@ def figure_heatmap(runs: list) -> pd.DataFrame:
     fig.text(0.01, 0.0, "Hatched: not a robust difference (seeds disagree in sign, or |mean| < 2 x seed std). "
              "Seeds are paired by index.", fontsize=8, color=MUTED)
     for ext in ("png", "pdf"):
-        fig.savefig(OUT / f"E2_rmse_change_heatmap.{ext}", dpi=200, bbox_inches="tight")
+        fig.savefig(OUT / f"{filename}.{ext}", dpi=200, bbox_inches="tight")
     plt.close(fig)
     return pd.concat(table)
 
@@ -240,6 +247,11 @@ def figure_heatmap(runs: list) -> pd.DataFrame:
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     runs = finished_runs()
+    if "--heatmap-only" in sys.argv:
+        figure_heatmap(runs).to_csv(OUT / "E2_rmse_change_heatmap.csv", index=False)
+        figure_heatmap(runs, PAPER_COMPARISONS, "E2_rmse_change_heatmap_paper")
+        print(f"wrote {OUT}/E2_rmse_change_heatmap.png/.pdf and E2_rmse_change_heatmap_paper.png/.pdf")
+        return
     print(f"finished runs: {runs}")
     era5 = xr.open_zarr("data/era5_eval_5p6.zarr")
 
@@ -253,6 +265,7 @@ def main() -> None:
     if any(c[0] in runs and c[1] in runs for c in COMPARISONS):
         table = figure_heatmap(runs)
         table.to_csv(OUT / "E2_rmse_change_heatmap.csv", index=False)
+        figure_heatmap(runs, PAPER_COMPARISONS, "E2_rmse_change_heatmap_paper")
         print(f"\nwrote {OUT}/E2_rmse_change_heatmap.png/.pdf/.csv")
     else:
         print("\nE2 needs the baseline and at least one variant; skipped for now")
