@@ -24,26 +24,30 @@ VARIABLES = {"Z500": "Z500 RMSE (m² s⁻²)", "T850": "T850 RMSE (K)"}
 def main() -> None:
     rows = []
     for run in RUNS:
+        if not (Path("runs") / run).exists():
+            continue
         for seed in seeds_of(run):
             d = pd.read_csv(Path("runs") / run / f"seed{seed}" / "scores.csv")
             rows.append(d[d.variable.isin(list(VARIABLES))].assign(seed=seed))
     scores = pd.concat(rows)
     scores["lead_days"] = scores.lead_hours / 24
 
-    fig, axes = plt.subplots(1, 2, figsize=(10, 4))
+    fig, axes = plt.subplots(1, 2, figsize=(10.5, 4.4))
     table = []
     for ax, (var, ylabel) in zip(axes, VARIABLES.items()):
         v = scores[scores.variable == var]
-        for run, (name, colour) in RUNS.items():
+        for run, (name, colour, style_) in RUNS.items():
             m = v[(v.run == run) & (v.metric == "rmse")].groupby("lead_days").value
+            if m.ngroups == 0:
+                continue
             stats = m.agg(["mean", "min", "max", "std", "count"])
             table.append(stats.reset_index().assign(variable=var, model=run))
-            ax.fill_between(stats.index, stats["min"], stats["max"], color=colour, alpha=0.2, linewidth=0)
-            ax.plot(stats.index, stats["mean"], color=colour, linewidth=2, marker="o", markersize=3,
-                    label=f"{name} (mean of {int(stats['count'].max())} seeds)")
+            ax.fill_between(stats.index, stats["min"], stats["max"], color=colour, alpha=0.15, linewidth=0)
+            ax.plot(stats.index, stats["mean"], color=colour, linewidth=1.8, linestyle=style_,
+                    label=f"{name} ({int(stats['count'].max())} seeds)")
 
         references = v[v.run == "baseline17"].groupby(["metric", "lead_days"]).value.first()
-        for metric, style_, label in (("rmse_persistence", "--", "Persistence"),
+        for metric, style_, label in (("rmse_persistence", "-.", "Persistence"),
                                       ("rmse_climatology", ":", "WB2 climatology")):
             ref = references[metric]
             ax.plot(ref.index, ref.values, style_, color=INK, linewidth=1.3, label=label)
@@ -66,8 +70,8 @@ def main() -> None:
         ax.set_title(var, color=INK, fontsize=10, loc="left")
 
     handles, labels = axes[0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc="upper center", ncol=5, frameon=False, fontsize=8,
-               bbox_to_anchor=(0.5, 1.06), labelcolor=INK_2)
+    fig.legend(handles, labels, loc="upper center", ncol=4, frameon=False, fontsize=8,
+               bbox_to_anchor=(0.5, 1.12), labelcolor=INK_2)
     fig.text(0.01, -0.02, "Test years 2017–2019, 864 initialisations. Lines: seed mean; shading: range over seeds.",
              fontsize=8, color=MUTED)
     fig.tight_layout()

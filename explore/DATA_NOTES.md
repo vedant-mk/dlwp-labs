@@ -370,3 +370,42 @@ while still a real reduction of spurious small-scale power relative to the basel
 blocks (445k vs 657k parameters) are a second possible cause the smoother cannot fix, so A' may
 recover only part of the gap. P7 uncertain (the humidity gain could itself depend on the seams).
 P8 likely if P6 holds.
+
+## Round 2 results (3 seeds each, 2026-09-13)
+
+Full tables: `explore/figures/seed_analysis_round2.md` (script `explore/seed_analysis.py --round2`).
+
+| Prediction | Verdict | Key numbers (mean over 3 seeds) |
+|---|---|---|
+| P6 seams cause A's damage | **holds** 6/6 | A' vs A at 5 d: Z500 −28.8%, T850 −32.0%, T2M −31.1%; spurious power k≥9 −87% (Z500), −93% (T850) |
+| P7 humidity gain survives | **holds** 9/9 | A' vs baseline: Q500 −22.0% (1 d), Q250 −18.8% (1 d), Q850 −8.2% (1 d) |
+| P8 smoother matters more for A (5 d) | **holds** | 5-d Z500: B' vs baseline −9.0% vs A' vs A −28.8%; T850 −7.5% vs −32.0% |
+| P9 milder pyramid weights cost less, still reduce spurious power | **holds** 5/5 | C' vs C Z500 1 d −2.5%; C' spurious power −10% (1 d) / −20% (5 d) vs C's −17% / −28% |
+
+**Exploratory, not pre-registered (A' vs B', what multi-scale adds beyond the smoother):**
+humidity Q500 −19.6% / −12.0% / −3.9% and Q250 −17.7% / −13.1% / −7.5% at 1/3/5 d; Z500 −4.7% and
+T850 −5.6% at 1 d, vanishing by 5 d; **T2M +8% at every lead** (a consistent cost); TP6h −6.9% at 1 d
+but +6.2% at 5 d.
+
+**The smoother alone (B' vs baseline, exploratory):** Z500 −14% / −25% / −18% / −9% at 6 h / 1 d / 3 d /
+5 d; V500 −26% at 1 d; T2M −22% at 6 h; humidity roughly unchanged.
+
+**Skill horizons (seed means, first crossing):**
+
+| model | Z500 beats climatology until | Z500 beats persistence until | T850 beats climatology until |
+|---|---|---|---|
+| baseline | 2.4 d | 4.5 d | 1.8 d |
+| B' baseline + smoother | **3.6 d** | > 5 d | **2.6 d** |
+| A multiscale | 2.1 d | 2.5 d | 1.6 d |
+| A' multiscale + smoother | **3.7 d** | > 5 d | **2.8 d** |
+| C pyramid 4/2/1 | 2.2 d | 4.0 d | 1.7 d |
+| C' pyramid 2/1.5/1 | 2.3 d | 4.5 d | 1.7 d |
+
+**Spectra (E1):** both smoothed models largely remove the k = 16 seam and grid-scale noise (T850 at
+1 d close to 1 at all k) and are *less* blurred for precipitation at every scale.
+
+**Updated story.** (1) The plain ViT's dominant scale defect is its patch seams; a 3×3 layer coupling
+neighbouring patches cuts Z500 error by a quarter at 1 day and extends useful skill by over a day.
+(2) With seams fixed, a multi-scale architecture adds a large, robust humidity gain (12–20% at 1–3 d)
+at a consistent T2M cost. (3) A scale-aware loss trades realism for accuracy along a tunable curve:
+4/2/1 buys ~28% less spurious power for up to 3.6% RMSE; 2/1.5/1 buys ~20% for about nothing.

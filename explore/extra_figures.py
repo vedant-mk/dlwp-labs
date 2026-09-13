@@ -30,11 +30,25 @@ from utils.metrics import truth_at
 xr.set_options(use_bottleneck=False)
 
 OUT = Path("explore/figures")
-RUNS = {  # fixed order and colour: colour follows the model, never its rank
-    "baseline17": ("Baseline ViT", "#2a78d6"),
-    "multiscale": ("A: multi-scale patches", "#eb6834"),
-    "pyramid": ("C: pyramid loss", "#1baf7a"),
+# colour = model family, line style = version; six hues fail colour-blind separation across all pairs,
+# three pass, so the round-2 variants share their family's hue and are told apart by a dashed line
+BLUE, ORANGE, AQUA = "#2a78d6", "#eb6834", "#1baf7a"
+RUNS = {  # fixed order: colour follows the model, never its rank
+    "baseline17": ("Baseline ViT", BLUE, "-"),
+    "baseline17_smooth": ("B′: baseline + seam smoother", BLUE, "--"),
+    "multiscale": ("A: multi-scale patches", ORANGE, "-"),
+    "multiscale_smooth": ("A′: multi-scale + seam smoother", ORANGE, "--"),
+    "pyramid": ("C: pyramid loss 4/2/1", AQUA, "-"),
+    "pyramid_w2": ("C′: pyramid loss 2/1.5/1", AQUA, "--"),
 }
+# heatmap panels: (model, reference, title); A' is set against B' to isolate what multi-scale adds
+COMPARISONS = [
+    ("baseline17_smooth", "baseline17", "B′ vs baseline: the seam smoother alone"),
+    ("multiscale", "baseline17", "A vs baseline"),
+    ("multiscale_smooth", "baseline17_smooth", "A′ vs B′: multi-scale beyond the smoother"),
+    ("pyramid", "baseline17", "C vs baseline"),
+    ("pyramid_w2", "baseline17", "C′ vs baseline"),
+]
 INK, INK_2, MUTED, GRID, AXIS = "#0b0b0b", "#52514e", "#898781", "#e1e0d9", "#c3c2b7"
 
 SPECTRUM_VARIABLES = ["Z500", "T850", "Q850", "TP6h"]
@@ -103,7 +117,6 @@ def figure_spectra(runs: list, era5: xr.Dataset) -> pd.DataFrame:
     fig, axes = plt.subplots(len(SPECTRUM_LEADS), len(SPECTRUM_VARIABLES),
                              figsize=(11, 5.2), sharex=True, squeeze=False)
     for run in runs:
-        name, colour = RUNS[run]
         for seed in seeds_of(run):
             sample = forecast_sample(run, seed)
             for lead in SPECTRUM_LEADS:
@@ -115,15 +128,15 @@ def figure_spectra(runs: list, era5: xr.Dataset) -> pd.DataFrame:
                                   power_ratio=float(r)) for kk, r in zip(k, ratio)]
     table = pd.DataFrame(rows)
     for run in runs:
-        name, colour = RUNS[run]
+        name, colour, style_ = RUNS[run]
         n = table[table.run == run].seed.nunique()
         for i, lead in enumerate(SPECTRUM_LEADS):
             for j, var in enumerate(SPECTRUM_VARIABLES):
                 g = table[(table.run == run) & (table.lead_hours == lead) & (table.variable == var)]
                 stats = g.groupby("wavenumber").power_ratio.agg(["mean", "min", "max"])
-                axes[i, j].fill_between(stats.index, stats["min"], stats["max"], color=colour, alpha=0.18, linewidth=0)
-                axes[i, j].plot(stats.index, stats["mean"], color=colour, linewidth=2,
-                                label=f"{name} (mean of {n} seeds)")
+                axes[i, j].fill_between(stats.index, stats["min"], stats["max"], color=colour, alpha=0.12, linewidth=0)
+                axes[i, j].plot(stats.index, stats["mean"], color=colour, linewidth=1.8, linestyle=style_,
+                                label=f"{name} ({n} seeds)")
 
     for i, lead in enumerate(SPECTRUM_LEADS):
         for j, var in enumerate(SPECTRUM_VARIABLES):
@@ -148,8 +161,8 @@ def figure_spectra(runs: list, era5: xr.Dataset) -> pd.DataFrame:
                     transform=axes[0, 0].get_xaxis_transform())
 
     handles, labels = axes[0, 0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc="upper center", ncol=len(runs), frameon=False, fontsize=9,
-               bbox_to_anchor=(0.5, 1.02), labelcolor=INK_2)
+    fig.legend(handles, labels, loc="upper center", ncol=3, frameon=False, fontsize=8.5,
+               bbox_to_anchor=(0.5, 1.07), labelcolor=INK_2)
     fig.suptitle("Below the dashed line the forecast has lost variance at that scale (blurring); "
                  "above it, it carries variance ERA5 does not (spurious noise). Shading: range over seeds. "
                  f"Wavelength at the equator = {EARTH_CIRCUMFERENCE_KM:,} km / k.",
@@ -167,7 +180,6 @@ DIVERGING = LinearSegmentedColormap.from_list(  # blue = better (lower RMSE), re
 
 
 def figure_heatmap(runs: list) -> pd.DataFrame:
-    variants = [r for r in runs if r != "baseline17"]
     per_seed = []
     for run in runs:
         for seed in seeds_of(run):
@@ -175,15 +187,18 @@ def figure_heatmap(runs: list) -> pd.DataFrame:
             per_seed.append(d[d.metric == "rmse"].assign(seed=seed))
     rmse = pd.concat(per_seed).pivot_table(index=["variable", "lead_hours", "seed"], columns="run", values="value")
     leads = sorted(rmse.index.get_level_values("lead_hours").unique())
+    panels = [c for c in COMPARISONS if c[0] in runs and c[1] in runs]
 
-    fig, axes = plt.subplots(1, len(variants), figsize=(5.4 * len(variants), 5.6), squeeze=False, sharey=True)
+    ncols = 3
+    nrows = -(-len(panels) // ncols)
+    fig, axes = plt.subplots(nrows, ncols, figsize=(5.0 * ncols, 5.2 * nrows), squeeze=False)
     table = []
     limit = 30
-    for ax, run in zip(axes[0], variants):
-        change = ((rmse[run] - rmse["baseline17"]) / rmse["baseline17"] * 100).dropna()
+    for ax, (run, reference, title) in zip(axes.flat, panels):
+        change = ((rmse[run] - rmse[reference]) / rmse[reference] * 100).dropna()
         summary = change.groupby(["variable", "lead_hours"]).agg(
             mean="mean", std=lambda v: v.std(ddof=1), seeds="count", real=is_real).reset_index()
-        table.append(summary.assign(run=run))
+        table.append(summary.assign(run=run, reference=reference))
         grid = summary.pivot(index="variable", columns="lead_hours", values="mean").reindex(HEATMAP_ORDER)
         real = summary.pivot(index="variable", columns="lead_hours", values="real").reindex(HEATMAP_ORDER)
         image = ax.imshow(grid.values, cmap=DIVERGING, vmin=-limit, vmax=limit, aspect="auto")
@@ -191,8 +206,7 @@ def figure_heatmap(runs: list) -> pd.DataFrame:
             if not ok:
                 ax.add_patch(plt.Rectangle((col - 0.5, row - 0.5), 1, 1, fill=False, hatch="////",
                                            edgecolor="#898781", linewidth=0))
-        n = int(summary.seeds.max())
-        ax.set_title(f"{RUNS[run][0]}  (mean of {n} seeds)", color=INK, fontsize=10, loc="left")
+        ax.set_title(f"{title}  ({int(summary.seeds.max())} seeds)", color=INK, fontsize=9.5, loc="left")
         ax.set_yticks(range(len(HEATMAP_ORDER)))
         ax.set_yticklabels(HEATMAP_ORDER, fontsize=8, color=INK_2)
         ticks = [i for i, h in enumerate(leads) if h % 24 == 0]
@@ -208,13 +222,15 @@ def figure_heatmap(runs: list) -> pd.DataFrame:
         for row, value in enumerate(grid.values[:, last]):
             ax.text(last, row, f"{value:+.0f}", ha="center", va="center", fontsize=6,
                     color=INK if abs(value) < 0.6 * limit else "#ffffff")
+    for ax in list(axes.flat)[len(panels):]:
+        ax.axis("off")
 
-    bar = fig.colorbar(image, ax=axes[0].tolist(), shrink=0.8, pad=0.02, extend="both")
-    bar.set_label("RMSE change vs baseline (%)   blue = better, red = worse", color=INK_2, fontsize=9)
+    bar = fig.colorbar(image, ax=axes.ravel().tolist(), shrink=0.6, pad=0.02, extend="both")
+    bar.set_label("RMSE change vs reference (%)   blue = better, red = worse", color=INK_2, fontsize=9)
     bar.ax.tick_params(labelsize=8, colors=MUTED, labelcolor=INK_2)
     bar.outline.set_visible(False)
-    fig.text(0.01, -0.01, "Hatched: not a robust difference (seeds disagree in sign, or |mean| < 2 x seed std).",
-             fontsize=8, color=MUTED)
+    fig.text(0.01, 0.0, "Hatched: not a robust difference (seeds disagree in sign, or |mean| < 2 x seed std). "
+             "Seeds are paired by index.", fontsize=8, color=MUTED)
     for ext in ("png", "pdf"):
         fig.savefig(OUT / f"E2_rmse_change_heatmap.{ext}", dpi=200, bbox_inches="tight")
     plt.close(fig)
@@ -234,7 +250,7 @@ def main() -> None:
     print("\nmean power ratio at small scales (k >= 9), per seed; 1 = realistic")
     print(summary.unstack(["run", "seed"]).round(2).to_string())
 
-    if "baseline17" in runs and len(runs) > 1:
+    if any(c[0] in runs and c[1] in runs for c in COMPARISONS):
         table = figure_heatmap(runs)
         table.to_csv(OUT / "E2_rmse_change_heatmap.csv", index=False)
         print(f"\nwrote {OUT}/E2_rmse_change_heatmap.png/.pdf/.csv")

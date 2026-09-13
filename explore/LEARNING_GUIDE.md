@@ -9,7 +9,7 @@ Read it top to bottom once, then use it as a reference. Each topic has:
 
 > This is a living document. It is updated after each milestone. See the [Changelog](#changelog) at the bottom.
 
-**Last updated:** 2026-09-13 (all 3 seeds in; hypotheses judged; protocol checked on 2016)
+**Last updated:** 2026-09-13 (round 2 in: seam smoother, A′, B′, C′; P6–P9 all hold)
 
 ---
 
@@ -522,6 +522,9 @@ A prediction that fails (e.g. "A removes the patch seams" was wrong) is reported
 | Sep 13 | All 9 runs done; hypotheses judged: H1–H4 hold, H5 fails | Pre-registered rule |
 | Sep 13 | Residual and rollout decisions re-checked on 2016 only | Keep test data out of decisions |
 | Sep 13 | Equal-length control showed the blow-up was undertraining | Separate two confounded changes |
+| Sep 13 | Required RMSE figure over seeds (F1) | Brief requirement |
+| Sep 13 | Round 2: seam smoother, A′, B′ control, C′ milder weights, 9 runs | Is A's failure the idea or the seams? |
+| Sep 13 | P6–P9 all hold; smoother extends skill by over a day | Pre-registered rule |
 
 ---
 
@@ -540,6 +543,9 @@ A prediction that fails (e.g. "A removes the patch seams" was wrong) is reported
 | Early "pyramid −16.6% at 5 days" disappeared with proper training | Early results on a broken setup don't transfer |
 | "Rollout training fixed the 5-day blow-up" was really "more training fixed it" | Test one change at a time; add an equal-length control |
 | A disk "leak" during seed runs was macOS swap (11 GB) | Check what grew before blaming your own files |
+| The driver stopped on a disk reading taken seconds after deleting 2.4 GB | Freed space lags; re-check before giving up |
+| Six colours failed the colour-blind check | Group by family: hue for family, line style for version |
+| "Baseline beats persistence to ~3.5 days" was eyeballed; measured it is 4.5 | Compute crossings, don't read them off a plot |
 
 ---
 
@@ -603,12 +609,56 @@ A prediction that fails (e.g. "A removes the patch seams" was wrong) is reported
 
 ---
 
+### 16.5 Round 2: fixing the seams, and tuning the loss (3 seeds each)
+
+**Why round 2:** round 1 left one big question: did A fail because of the *multi-scale idea*, or because of *how it wrote its patches out* (the seams)? It also tested only one pyramid weight setting.
+
+**The new ingredient: a seam smoother.**
+- **In one sentence:** a tiny 3×3 layer applied to the output map, which blends each grid cell with its neighbours across patch edges, wraps around in longitude, and starts out doing nothing (the identity).
+- **Why it helps:** each token writes its patch independently, so patches don't join smoothly. The seams become fake small-scale noise that builds up over 20 forecast steps. The smoother lets neighbouring patches agree at their edges.
+- **Cost:** 2,618 extra parameters (0.35%).
+
+**Three new models:** B′ = baseline + smoother (**the control**), A′ = multi-scale + smoother, C′ = pyramid loss with milder weights 2/1.5/1.
+
+**Why the control (B′) was essential:** if we'd only built A′, any improvement could be "smoothing helps anything". B′ separates the two: the gain from smoothing alone, versus what multi-scale adds on top of it.
+
+| Prediction (written before running) | Verdict |
+|---|---|
+| P6: seams cause A's damage | ✅ holds: A′ vs A at 5 days, Z500 −29%, T850 −32%, T2M −31% |
+| P7: humidity gain survives | ✅ holds: A′ vs baseline, Q500 −22%, Q250 −19% at 1 day |
+| P8: smoother matters more for A (5 days) | ✅ holds: −29% for A vs −9% for the baseline |
+| P9: milder pyramid weights cost less | ✅ holds: RMSE cost gone; spurious power still −20% at 5 days |
+
+**Useful skill, measured** (how long a model stays better than the free baselines):
+
+| Model | Z500 beats climatology until | Z500 beats persistence until |
+|---|---|---|
+| Baseline | 2.4 days | 4.5 days |
+| **B′: baseline + smoother** | **3.6 days** | beyond 5 days |
+| **A′: multi-scale + smoother** | **3.7 days** | beyond 5 days |
+
+**What multi-scale adds on top of the smoother** (A′ vs B′; *exploratory*, chosen after seeing seed 0): humidity **12–20% better** at 1–3 days, Z500/T850 ~5% better at 1 day, but **T2M ~8% worse at every lead**.
+
+**The updated story for the paper:**
+1. The plain ViT's biggest scale defect is its **patch seams**. A 3×3 layer that lets neighbouring patches interact cuts Z500 error by a quarter at 1 day and adds over a day of useful skill.
+2. With seams fixed, a **multi-scale architecture adds a large, robust humidity gain**, the field with the most small-scale structure, exactly as the bias predicts, at a consistent cost for surface temperature.
+3. A **scale-aware loss** gives a tunable realism/accuracy trade-off: 4/2/1 buys ~28% less fake noise for up to 3.6% RMSE; 2/1.5/1 buys ~20% for essentially nothing.
+
+**Check yourself:**
+- Why did we need B′ even though the question was about A?
+- Why is the A′ vs B′ humidity result called "exploratory"?
+- What does "beats climatology until 3.6 days" mean, and why is it a good way to summarise skill?
+
 ## 17. Open questions and next steps
 
 1. ~~Seeds 1–2~~ ✅ done: H1–H4 hold, H5 fails (§16.0).
 2. ~~Methodology fixes on 2016~~ ✅ done: both decisions stand; rollout explanation corrected (§9.3, §13.4).
 3. ~~Redraw E1 and E2 with seeds~~ ✅ done (mean lines, seed-range bands, hatching for non-robust cells). The required RMSE figure with seed means and ranges is done too (`explore/figures/F1_rmse_z500_t850.png`).
 4. Pyramid's T2M error alternates with lead time, consistently across seeds. Probably the daily cycle; decide whether to mention it.
+5. ~~Round 2: seam smoother, A′, B′, C′~~ ✅ done, P6–P9 all hold (§16.5).
+6. **Framing decision for the paper:** the brief asks for two ways to add the bias. Candidates: **A′ (architecture)** vs **C′ or C (loss)**, with the baseline, A and B′ as ablations explaining *why*.
+7. Heatmap panel titles are slightly crowded; shorten when making paper figures.
+8. Next: **write the paper.**
 4. **Write the paper:** Intro → Methods → Results → Discussion, ≤2200 words, TCCML LaTeX.
 5. **Verify every reference** (DOIs, pages) before submission.
 6. Possible discussion point: A's patch artefacts could be reduced with overlapping or smoothed un-embedding (future work).
@@ -687,6 +737,8 @@ Try each in under a minute, without notes.
 15. Why can nothing in this project change Jannik's repo or charge your money?
 16. Which hypothesis failed, and why is that a useful result?
 17. What was confounded in "rollout training fixed the blow-up", and how did the control fix it?
+18. What is the seam smoother, and why does it help so much?
+19. Why was B′ needed to interpret A′?
 
 ---
 
@@ -701,7 +753,9 @@ Try each in under a minute, without notes.
 | `utils/loss_fn.py` | `f_mse`, `f_pyramid_mse`, `laplacian_pyramid` |
 | `utils/lightning_module.py` | Training/validation/prediction steps, residual, rollout |
 | `utils/metrics.py` | RMSE, ACC, skill, `scores` |
-| `configs/baseline17.yaml` · `multiscale.yaml` · `pyramid.yaml` | The three models |
+| `configs/baseline17.yaml` · `multiscale.yaml` · `pyramid.yaml` | Round-1 models |
+| `configs/baseline17_smooth.yaml` · `multiscale_smooth.yaml` · `pyramid_w2.yaml` | Round-2 models (B′, A′, C′) |
+| `explore/figures/seed_analysis_round2.md` | P6–P9 verdicts |
 | `runs/<model>/seed<k>/` | Scores, loss curves, run info, forecasts |
 | `explore/DATA_NOTES.md` | Detailed data tour, findings and pre-registration |
 | `explore/REFERENCES.md` · `references.bib` | Papers and what each supports |
@@ -722,5 +776,6 @@ Try each in under a minute, without notes.
 | Date | Added |
 |---|---|
 | 2026-09-12 | First version: sections 1–21, covering everything up to seed-0 results and the start of seeds 1–2 |
-| 2026-09-13 | Required RMSE figure over seeds (F1): models beat persistence to ~3.5 d (Z500) but cross climatology at ~2.3 d; §2 status updated |
+| 2026-09-13 | Round 2 (§16.5): seam smoother, A′/B′/C′, P6–P9 all hold, measured skill horizons; open questions, timeline, lessons, self-test, repo map updated |
+| 2026-09-13 | Required RMSE figure over seeds (F1): models cross climatology at ~2.3 d (Z500); persistence crossing later measured at 4.5 d; §2 status updated |
 | 2026-09-13 | §16.0 final seed verdicts; §9.3 rollout explanation corrected with the equal-length control; §13.4 validation fixes done; timeline, lessons, open questions, self-test, repo map updated |

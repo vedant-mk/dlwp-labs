@@ -121,5 +121,116 @@ def main() -> None:
     print("\n".join(lines))
 
 
-if __name__ == "__main__":
+def power_change(small: pd.Series, run: str, reference: str, variable: str, lead: int) -> np.ndarray:
+    a = small.xs((run, variable, lead), level=("run", "variable", "lead_hours"))
+    b = small.xs((reference, variable, lead), level=("run", "variable", "lead_hours"))
+    seeds = sorted(set(a.index) & set(b.index))
+    return np.array([(a[s] / b[s] - 1) * 100 for s in seeds])
+
+
+def paired_change(rmse: pd.DataFrame, run: str, reference: str, variable: str, lead: int) -> np.ndarray:
+    g = rmse.xs((variable, lead), level=("variable", "lead_hours"))
+    return ((g[run] / g[reference] - 1) * 100).dropna().values
+
+
+def round2() -> None:
+    rows = []
+    for run in ("baseline17", "multiscale", "pyramid", "baseline17_smooth", "multiscale_smooth", "pyramid_w2"):
+        for seed in seeds_of(run):
+            d = pd.read_csv(Path("runs") / run / f"seed{seed}" / "scores.csv")
+            rows.append(d[d.metric == "rmse"].assign(seed=seed))
+    rmse = pd.concat(rows).pivot_table(index=["variable", "lead_hours", "seed"], columns="run", values="value")
+    spectra = pd.read_csv(OUT / "E1_spectrum_ratio.csv")
+    small = spectra[spectra.wavenumber >= 9].groupby(["run", "seed", "variable", "lead_hours"]).power_ratio.mean()
+
+    lines = ["# Round 2: pre-registered predictions P6–P9", "",
+             "Rule: real only if all seeds agree in sign and |mean| >= 2 x seed std. Seeds paired by index.", ""]
+    verdicts = {}
+
+    lines += ["## P6: A′ fixes A's 5-day damage (seams cause it)", "",
+              "| quantity | A′ vs A | real improvement? |", "|---|---|---|"]
+    ok = []
+    for var in ("Z500", "T850", "T2M"):
+        c = paired_change(rmse, "multiscale_smooth", "multiscale", var, 120)
+        good = is_real(c) and c.mean() < 0
+        ok.append(good)
+        lines.append(f"| RMSE {var}, 5 d | {describe(c)} | {'yes' if good else 'no'} |")
+    for var in ("Z500", "T850", "Q850"):
+        c = power_change(small, "multiscale_smooth", "multiscale", var, 120)
+        good = is_real(c) and c.mean() < 0
+        ok.append(good)
+        lines.append(f"| spurious power k≥9 {var}, 5 d | {describe(c)} | {'yes' if good else 'no'} |")
+    verdicts["P6"] = all(ok)
+    lines += ["", f"{sum(ok)}/{len(ok)} → **{'HOLDS' if all(ok) else 'PARTLY' if any(ok) else 'FAILS'}**", ""]
+
+    lines += ["## P7: A′ keeps a humidity improvement over the baseline at 1–3 days", "",
+              "| variable | lead (h) | A′ vs baseline | real improvement? |", "|---|---|---|---|"]
+    ok = []
+    for var in ("Q850", "Q500", "Q250"):
+        for lead in (24, 48, 72):
+            c = paired_change(rmse, "multiscale_smooth", "baseline17", var, lead)
+            good = is_real(c) and c.mean() < 0
+            ok.append(good)
+            lines.append(f"| {var} | {lead} | {describe(c)} | {'yes' if good else 'no'} |")
+    verdicts["P7"] = all(ok)
+    lines += ["", f"{sum(ok)}/{len(ok)} → **{'HOLDS' if all(ok) else 'PARTLY' if any(ok) else 'FAILS'}**", ""]
+
+    lines += ["## P8: the smoother matters more for A than for the baseline (5 days)", "",
+              "| variable | B′ vs baseline | A′ vs A | smaller for the baseline? |", "|---|---|---|---|"]
+    ok = []
+    for var in ("Z500", "T850"):
+        b = paired_change(rmse, "baseline17_smooth", "baseline17", var, 120)
+        a = paired_change(rmse, "multiscale_smooth", "multiscale", var, 120)
+        good = abs(b.mean()) < abs(a.mean())
+        ok.append(good)
+        lines.append(f"| {var} | {describe(b)} | {describe(a)} | {'yes' if good else 'no'} |")
+    verdicts["P8"] = all(ok)
+    lines += ["", "Note: P8 compares magnitudes at 5 days only, as pre-registered. At 1–3 days the smoother's",
+              "effect on the baseline is itself large (see the exploratory section).", "",
+              f"**{'HOLDS' if all(ok) else 'FAILS'}**", ""]
+
+    lines += ["## P9: milder pyramid weights (C′) cost less, but still reduce spurious power", "",
+              "| quantity | comparison | value | as predicted? |", "|---|---|---|---|"]
+    ok = []
+    c = paired_change(rmse, "pyramid_w2", "pyramid", "Z500", 24)
+    good = is_real(c) and c.mean() < 0
+    ok.append(good)
+    lines.append(f"| RMSE Z500, 1 d | C′ vs C | {describe(c)} | {'yes' if good else 'no'} |")
+    for var in ("Z500", "T850"):
+        for lead in (24, 120):
+            cp = power_change(small, "pyramid_w2", "baseline17", var, lead)
+            cc = power_change(small, "pyramid", "baseline17", var, lead)
+            good = is_real(cp) and cp.mean() < 0 and abs(cp.mean()) < abs(cc.mean())
+            ok.append(good)
+            lines.append(f"| spurious power {var}, {lead} h | C′ vs baseline (C: {cc.mean():+.1f}%) | {describe(cp)} | {'yes' if good else 'no'} |")
+    verdicts["P9"] = all(ok)
+    lines += ["", f"{sum(ok)}/{len(ok)} → **{'HOLDS' if all(ok) else 'PARTLY' if any(ok) else 'FAILS'}**", ""]
+
+    lines += ["## Exploratory (not pre-registered): what multi-scale adds beyond the smoother", "",
+              "A′ vs B′, RMSE change. Labelled exploratory because this comparison was chosen after seeing seed 0.", "",
+              "| variable | 1 d | 3 d | 5 d |", "|---|---|---|---|"]
+    for var in ("Z500", "T850", "T2M", "Q850", "Q500", "Q250", "TP6h", "U250", "V500"):
+        cells = []
+        for lead in (24, 72, 120):
+            c = paired_change(rmse, "multiscale_smooth", "baseline17_smooth", var, lead)
+            cells.append(f"{c.mean():+.1f}%{'' if is_real(c) else ' (n.s.)'}")
+        lines.append(f"| {var} | " + " | ".join(cells) + " |")
+    lines += ["", "(n.s.) = not a robust difference by the rule.", "",
+              "## Exploratory: the smoother alone (B′ vs baseline)", "", "| variable | 6 h | 1 d | 3 d | 5 d |", "|---|---|---|---|---|"]
+    for var in ("Z500", "T850", "T2M", "Q500", "V500"):
+        cells = []
+        for lead in (6, 24, 72, 120):
+            c = paired_change(rmse, "baseline17_smooth", "baseline17", var, lead)
+            cells.append(f"{c.mean():+.1f}%{'' if is_real(c) else ' (n.s.)'}")
+        lines.append(f"| {var} | " + " | ".join(cells) + " |")
+
+    lines += ["", "## Summary", "", "| prediction | verdict |", "|---|---|"]
+    lines += [f"| {k} | {'holds' if v else 'does not fully hold (see table)'} |" for k, v in verdicts.items()]
+    (OUT / "seed_analysis_round2.md").write_text("\n".join(lines) + "\n")
+    print("\n".join(lines))
+
+
+if __name__ == "__main__" and "--round2" in sys.argv:
+    round2()
+elif __name__ == "__main__":
     main()
