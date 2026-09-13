@@ -62,7 +62,7 @@ Read it top to bottom once, then use it as a reference. Each topic has:
 | **Two** ways to introduce it, show and explain the code | A: multi-scale patches · C: pyramid loss | Done |
 | Predict where performance will differ | Written *before* running (see §13) | Done |
 | Compare both against the baseline ViT | 3 seeds per model; hypotheses judged (§16.0) | Done |
-| Figure: RMSE Z500 & T850 over 5 days vs persistence and climatology | `runs/rmse_z500_t850.png` (auto, one line per seed) | Needs a mean ± spread version |
+| Figure: RMSE Z500 & T850 over 5 days vs persistence and climatology | `explore/figures/F1_rmse_z500_t850.png`: seed means with ranges | Done |
 | Figure: T850 forecast at 1 day | `runs/*/seed0/forecast_t850_24h.png` (auto) | Done |
 | Figure: training and validation loss | `runs/*/seed0/loss_curves.png` (auto) | Done |
 | Runtime and hardware of each run | `runs/*/seed*/run.json` (Mac GPU, `mps`) | Done |
@@ -607,7 +607,7 @@ A prediction that fails (e.g. "A removes the patch seams" was wrong) is reported
 
 1. ~~Seeds 1–2~~ ✅ done: H1–H4 hold, H5 fails (§16.0).
 2. ~~Methodology fixes on 2016~~ ✅ done: both decisions stand; rollout explanation corrected (§9.3, §13.4).
-3. ~~Redraw E1 and E2 with seeds~~ ✅ done (mean lines, seed-range bands, hatching for non-robust cells). **Still to do:** the required RMSE figure with seed means and spreads.
+3. ~~Redraw E1 and E2 with seeds~~ ✅ done (mean lines, seed-range bands, hatching for non-robust cells). The required RMSE figure with seed means and ranges is done too (`explore/figures/F1_rmse_z500_t850.png`).
 4. Pyramid's T2M error alternates with lead time, consistently across seeds. Probably the daily cycle; decide whether to mention it.
 4. **Write the paper:** Intro → Methods → Results → Discussion, ≤2200 words, TCCML LaTeX.
 5. **Verify every reference** (DOIs, pages) before submission.
@@ -706,6 +706,7 @@ Try each in under a minute, without notes.
 | `explore/DATA_NOTES.md` | Detailed data tour, findings and pre-registration |
 | `explore/REFERENCES.md` · `references.bib` | Papers and what each supports |
 | `explore/extra_figures.py` | E1 and E2 |
+| `explore/rmse_figure.py` | F1: required RMSE figure over seeds |
 | `explore/diagnose_baseline.py` | Residual vs no-residual diagnostic |
 | `explore/run_seeds.py` | Overnight seed driver |
 | `explore/seed_analysis.py` · `figures/seed_analysis.md` | Hypotheses judged against 3 seeds |
@@ -721,4 +722,5 @@ Try each in under a minute, without notes.
 | Date | Added |
 |---|---|
 | 2026-09-12 | First version: sections 1–21, covering everything up to seed-0 results and the start of seeds 1–2 |
+| 2026-09-13 | Required RMSE figure over seeds (F1): models beat persistence to ~3.5 d (Z500) but cross climatology at ~2.3 d; §2 status updated |
 | 2026-09-13 | §16.0 final seed verdicts; §9.3 rollout explanation corrected with the equal-length control; §13.4 validation fixes done; timeline, lessons, open questions, self-test, repo map updated |
