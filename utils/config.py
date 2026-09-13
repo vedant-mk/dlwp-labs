@@ -36,6 +36,9 @@ class NetworkConfig:
     # predict the tendency rather than the whole next state: forward(x) returns x + net(x).
     # Without it the network has no path to the identity and loses to persistence at six hours
     residual: bool = False
+    # a 3x3 convolution over the output field, periodic in longitude and starting as the identity,
+    # that can smooth the discontinuities at patch boundaries
+    smooth_readout: bool = False
 
 
 @dataclass

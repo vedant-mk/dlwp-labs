@@ -97,6 +97,30 @@ class TransformerBlock(torch.nn.Module):
         return x
 
 
+class SeamSmoother(torch.nn.Module):
+    """A 3x3 convolution over the output field, applied after the patches are written.
+
+    Each token writes its patch independently, so neighbouring patches need not join smoothly and the
+    seams recur at the patch period (k = 16 for 4x4 on a 64-cell circle). This layer mixes each cell
+    with its neighbours across those boundaries. Longitude is padded periodically (column 63 neighbours
+    column 0), latitude by replication. It is initialised as the identity, so training starts from the
+    unsmoothed network and the layer only smooths as much as the loss asks for.
+    """
+
+    def __init__(self, num_variables: int):
+        super().__init__()
+        self.conv = torch.nn.Conv2d(num_variables, num_variables, kernel_size=3, bias=True)
+        with torch.no_grad():
+            self.conv.weight.zero_()
+            self.conv.bias.zero_()
+            self.conv.weight[:, :, 1, 1] = torch.eye(num_variables)
+
+    def forward(self, x: torch.FloatTensor) -> torch.FloatTensor:
+        x = torch.nn.functional.pad(x, (1, 1, 0, 0), mode="circular")
+        x = torch.nn.functional.pad(x, (0, 0, 1, 1), mode="replicate")
+        return self.conv(x)
+
+
 class ViT(torch.nn.Module):
     def __init__(self, network: NetworkConfig, world: WorldConfig):
         super().__init__()
@@ -120,6 +144,7 @@ class ViT(torch.nn.Module):
         ])
 
         self.apply(self.base_init)
+        self.smoother = SeamSmoother(world.field_sizes["v"]) if network.smooth_readout else None
 
     @staticmethod
     def base_init(m: torch.nn.Module):
@@ -132,7 +157,8 @@ class ViT(torch.nn.Module):
         tokens = self.to_tokens(x) + self.positions
         for block in self.blocks:
             tokens = block(tokens)
-        return self.to_fields(tokens)
+        fields = self.to_fields(tokens)
+        return self.smoother(fields) if self.smoother is not None else fields
 
 
 class MultiScaleViT(torch.nn.Module):
@@ -177,6 +203,7 @@ class MultiScaleViT(torch.nn.Module):
         ])
 
         self.apply(ViT.base_init)
+        self.smoother = SeamSmoother(num_variables) if network.smooth_readout else None
 
     def forward(self, x: torch.FloatTensor) -> torch.FloatTensor:
         tokens = torch.cat([embed(x) + position
@@ -189,7 +216,7 @@ class MultiScaleViT(torch.nn.Module):
             part = to_field(tokens[:, start: start + count])
             fields = part if fields is None else fields + part
             start += count
-        return fields
+        return self.smoother(fields) if self.smoother is not None else fields
 
 
 class Persistence(torch.nn.Module):

@@ -347,3 +347,26 @@ Full tables: `explore/figures/seed_analysis.md` (script `explore/seed_analysis.p
 (≤ 3.6%, shrinking with lead). A trades ~8% better humidity for large degradation of smooth fields,
 driven by grid-scale noise at its own patch periods. Pyramid's T2M shows a consistent (not hatched)
 alternating pattern with lead, likely tied to the diurnal cycle; noted, not interpreted further.
+
+---
+
+## Pre-registered predictions for round 2 (written 2026-09-13, before any round-2 run)
+
+New models (3 seeds each, same data and protocol, same "real" rule as round 1):
+- **A'** `multiscale_smooth`: A + a 3x3 output convolution, periodic in longitude, initialised as identity (+2,618 params; 0.989x baseline).
+- **B'** `baseline17_smooth`: baseline + the same smoother (control for A').
+- **C'** `pyramid_w2`: pyramid loss with weights 2 / 1.5 / 1 instead of 4 / 2 / 1.
+
+**P6 — seams cause A's damage.** A' has a real, lower 5-day RMSE than A for Z500, T850 and T2M,
+and less spurious small-scale power (E1 ratio at k >= 9, 5 days) than A.
+**P7 — the humidity gain survives.** A' still shows a real humidity RMSE improvement over the
+baseline at 1-3 days (Q850/Q500/Q250).
+**P8 — the effect is specific to A.** At 5 days, the smoother changes Z500/T850 RMSE for the
+baseline (B' vs baseline) by less than it changes the multiscale model (A' vs A).
+**P9 — milder weights, smaller cost.** C' has a real, smaller Z500 RMSE cost than C at 1 day,
+while still a real reduction of spurious small-scale power relative to the baseline (smaller than C's).
+
+**Expectation before running:** P9 likely. P6 plausible but uncertain — A's thinner transformer
+blocks (445k vs 657k parameters) are a second possible cause the smoother cannot fix, so A' may
+recover only part of the gap. P7 uncertain (the humidity gain could itself depend on the seams).
+P8 likely if P6 holds.

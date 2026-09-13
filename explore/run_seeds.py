@@ -64,22 +64,21 @@ def keep_slice_and_prune(run_dir: Path) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--wait-pid", type=int, required=True)
+    parser.add_argument("--wait-pid", type=int, default=None)
+    parser.add_argument("--configs", nargs="+", default=CONFIGS)
+    parser.add_argument("--seeds", nargs="+", type=int, default=SEEDS)
     args = parser.parse_args()
 
-    say(f"waiting for the seed-0 batch (pid {args.wait_pid}) to finish")
-    while alive(args.wait_pid):
-        time.sleep(60)
-    say("seed-0 batch finished")
-
-    batch_log = (ROOT / "explore" / "rollout_runs.log").read_text(errors="ignore")
-    multiscale_ok = "multiscale seed 0:" in batch_log
-    if not multiscale_ok:
-        say("WARNING: multiscale seed 0 did not complete; its seed runs are skipped")
+    if args.wait_pid is not None:
+        say(f"waiting for pid {args.wait_pid} to finish")
+        while alive(args.wait_pid):
+            time.sleep(60)
+        say("finished waiting")
+    multiscale_ok = True
 
     env = {**os.environ, "KMP_DUPLICATE_LIB_OK": "TRUE"}
-    for seed in SEEDS:
-        for config in CONFIGS:
+    for seed in args.seeds:
+        for config in args.configs:
             if config == "multiscale" and not multiscale_ok:
                 continue
             run_dir = ROOT / "runs" / config / f"seed{seed}"
