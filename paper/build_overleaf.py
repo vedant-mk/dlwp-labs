@@ -72,16 +72,16 @@ def main() -> None:
             print(f"  {f.relative_to(OUT)}  ({f.stat().st_size // 1024} KB)")
 
 
-if __name__ == "__main__":
-    main()
-    import sys
-    if "--compile" in sys.argv:
-        compile_pdf()
-
-
 def compile_pdf() -> None:
     """Build the PDF with Tectonic and copy it to paper/draft.pdf."""
     import subprocess
     subprocess.run(["tectonic", "-X", "compile", "main.tex"], cwd=OUT, check=True)
     shutil.copy(OUT / "main.pdf", ROOT / "paper" / "draft.pdf")
     print(f"compiled {ROOT / 'paper' / 'draft.pdf'}")
+
+
+if __name__ == "__main__":
+    main()
+    import sys
+    if "--compile" in sys.argv:
+        compile_pdf()
