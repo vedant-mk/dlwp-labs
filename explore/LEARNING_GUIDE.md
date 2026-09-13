@@ -9,7 +9,7 @@ Read it top to bottom once, then use it as a reference. Each topic has:
 
 > This is a living document. It is updated after each milestone. See the [Changelog](#changelog) at the bottom.
 
-**Last updated:** 2026-09-12 (seed-0 results in; seeds 1–2 running)
+**Last updated:** 2026-09-13 (all 3 seeds in; hypotheses judged; protocol checked on 2016)
 
 ---
 
@@ -61,13 +61,13 @@ Read it top to bottom once, then use it as a reference. Each topic has:
 | Choose **one** inductive bias, explain the physics | Hierarchical scale interactions (Lorenz: predictability depends on scale) | Done |
 | **Two** ways to introduce it, show and explain the code | A: multi-scale patches · C: pyramid loss | Done |
 | Predict where performance will differ | Written *before* running (see §13) | Done |
-| Compare both against the baseline ViT | Seed 0 done; seeds 1–2 running | In progress |
-| Figure: RMSE Z500 & T850 over 5 days vs persistence and climatology | `runs/rmse_z500_t850.png` (auto) | Final after seeds |
+| Compare both against the baseline ViT | 3 seeds per model; hypotheses judged (§16.0) | Done |
+| Figure: RMSE Z500 & T850 over 5 days vs persistence and climatology | `runs/rmse_z500_t850.png` (auto, one line per seed) | Needs a mean ± spread version |
 | Figure: T850 forecast at 1 day | `runs/*/seed0/forecast_t850_24h.png` (auto) | Done |
 | Figure: training and validation loss | `runs/*/seed0/loss_curves.png` (auto) | Done |
 | Runtime and hardware of each run | `runs/*/seed*/run.json` (Mac GPU, `mps`) | Done |
-| **Two extra** verification figures, with justification | E1 spectrum ratio · E2 per-variable heatmap | Done (redraw with seeds) |
-| Summary + recommendation | After seeds | To do |
+| **Two extra** verification figures, with justification | E1 spectrum ratio · E2 per-variable heatmap, both over 3 seeds | Done |
+| Summary + recommendation | Evidence in §16.0; wording to write | To do |
 | Report: ≤2200 words, Intro/Methods/Results/Discussion, TCCML LaTeX | References ready | To do |
 | **Data rules:** train ≤ 2015, test exactly 2017–2019, include Z500 & T850 | Train 2009–2015, val 2016, test 2017–2019 | Done, enforced by `experiment.py` |
 
@@ -352,9 +352,22 @@ A **15× spread** across fields that the baseline embeds with identical 4×4 pat
 **In one sentence:** during training, let the model run several steps on its own outputs and learn from the accumulated error, so it learns to recover from its own mistakes.
 
 **In your project:** 4,000 steps predicting one step ahead, then 2,000 steps rolling out 4 steps with gradients through the whole chain (Lab 3 Part 2).
-Before: Z500 RMSE at 5 days = **19,609** (exploded). After: **1,017**.
 
-**Check yourself:** why does a model trained only one step ahead fall apart over 20 steps?
+**What it actually fixed. This was corrected after a proper control experiment.** Early on, a model trained for only 2,000 steps exploded at 5 days (Z500 RMSE ~17,000–19,600) and the rollout-trained model didn't, so it *looked* as though rollout training prevented the blow-up. The fair test compares models trained for the **same** number of steps (on 2016 validation data):
+
+| Z500 RMSE, 2016 | 6 h | 3 d | 5 d |
+|---|---|---|---|
+| single-step, 2,000 steps | 247 | 3,061 | 16,874 |
+| single-step, 6,000 steps | **181** | 934 | 1,177 |
+| rollout-trained, 6,000 steps | 185 | **864** | **1,027** |
+
+So the blow-up was mostly **undertraining**. Rollout training's real contribution is **~7% better at 3 days and ~13% at 5 days**, for a ~2% cost at 6 h.
+
+**Lesson:** when two things change at once (here, training length *and* rollout training), you can't credit either until you test them separately.
+
+**Check yourself:**
+- Why does error compound in a rollout?
+- Why was "rollout training fixed the blow-up" an unfair conclusion, and what control fixed the reasoning?
 
 ---
 
@@ -469,10 +482,14 @@ A bigger model might win just from size, so A is shrunk to the same parameter co
 - Real = all 3 seeds agree in sign **and** mean difference ≥ 2× seed spread.
 - Hypotheses: (1) baseline reproducible; (2) A improves humidity 5–8% at 1–3 days; (3) A degrades Z500/T850/T2M at 5 days; (4) C cuts spurious small-scale power 15–30%; (5) C's RMSE within seed noise.
 
-### 13.4 Our two methodology fixes (to do after the seeds)
+### 13.4 Our two methodology fixes (done on 2016 validation data)
 
-1. **Rollout-training decision** was motivated by the *test-year* blow-up. Fix: show the same blow-up in the **2016 validation** logs.
-2. **Residual decision** was validated on December 2015, inside the training years. Fix: re-run the check on **2016**.
+Both decisions had first been justified with the wrong data. We re-checked them using **only 2016**, never the test years (`explore/validate_on_2016.py`, `explore/figures/validation2016.md`):
+
+1. **Residual.** It had been checked on December 2015, *inside* the training years. On 2016: plain model **1.31×** persistence's loss, residual **0.75×**. The decision stands.
+2. **Rollout training.** It had been motivated by the *test-year* blow-up. On 2016, with an **equal-length control**, it improves 3–5 day skill by 7–13%. The decision stands, but for a different reason than first thought (§9.3).
+
+**Lesson:** decisions belong on validation data. And if you only compare "old setup" against "new setup", a hidden second difference can take the credit.
 
 ### 13.5 Negative results are results
 
@@ -501,6 +518,10 @@ A prediction that fails (e.g. "A removes the patch seams" was wrong) is reported
 | Sep 12 | Seed-0 runs for all three; extra figures E1 and E2 | First full comparison |
 | Sep 12 | Found patch seams at wavenumber 16 | New result about scales |
 | Sep 12 | Pre-registered seed criteria; started seeds 1–2 overnight | Separate real effects from luck |
+| Sep 12 | Wrote this learning guide | To explain the project properly |
+| Sep 13 | All 9 runs done; hypotheses judged: H1–H4 hold, H5 fails | Pre-registered rule |
+| Sep 13 | Residual and rollout decisions re-checked on 2016 only | Keep test data out of decisions |
+| Sep 13 | Equal-length control showed the blow-up was undertraining | Separate two confounded changes |
 
 ---
 
@@ -517,12 +538,32 @@ A prediction that fails (e.g. "A removes the patch seams" was wrong) is reported
 | Disk would have filled with 6 × 2.4 GB forecasts | Budget disk before long runs; keep only what the paper needs |
 | My first "no cloud resources" check miscounted its own error messages | Look at raw output before trusting a count |
 | Early "pyramid −16.6% at 5 days" disappeared with proper training | Early results on a broken setup don't transfer |
+| "Rollout training fixed the 5-day blow-up" was really "more training fixed it" | Test one change at a time; add an equal-length control |
+| A disk "leak" during seed runs was macOS swap (11 GB) | Check what grew before blaming your own files |
 
 ---
 
 ## 16. Results so far
 
-*Seed 0 only. Seeds 1–2 will turn these into mean ± spread.*
+### 16.0 Final verdicts: 3 seeds per model, pre-registered rule
+
+*A difference is real only if all 3 seeds agree in sign and the mean is at least 2× the seed standard deviation. Full tables: `explore/figures/seed_analysis.md`.*
+
+| Hypothesis | Verdict | Evidence (mean ± std over seeds) |
+|---|---|---|
+| H1: baseline reproducible | ✅ **holds** | Largest seed spread **0.59%** of RMSE |
+| H2: A improves humidity 5–8% at 1–3 days | ✅ **holds** | All 9 cells real: **−6.7% to −9.0%** |
+| H3: A degrades smooth fields at 5 days | ✅ **holds** | Z500 **+27.7 ± 5.4%**, T850 **+36.1 ± 6.5%**, T2M **+58.1 ± 5.5%** |
+| H4: C cuts spurious small-scale power 15–30% | ✅ **holds** | Z500 **−27.9%** at 5 d, T850 **−20.9%**, Q850 −12.8% |
+| H5: C's RMSE within seed noise | ❌ **fails** | Small but **real cost**: Z500 +0.8% to +3.6%; T850 +1.2% to +2.4% up to 3 d; tie at 5 d |
+
+**The story these support:**
+> *Architecture (A):* ~8% better humidity, but its own patch seams add grid noise that builds up and damages smooth fields by 28–58% at 5 days.
+> *Loss (C):* 15–30% less spurious small-scale noise, for a small, consistent accuracy cost (≤3.6%) that shrinks with lead time.
+
+**Why H5 failing matters:** we'd hoped C was free. With a reproducible baseline (spread 0.6%), even +2% is measurable. Writing the rule down first stopped us from calling +2% "basically the same".
+
+*The sections below are the original seed-0 numbers, kept for reference.*
 
 ### 16.1 Required variables
 
@@ -564,9 +605,10 @@ A prediction that fails (e.g. "A removes the patch seams" was wrong) is reported
 
 ## 17. Open questions and next steps
 
-1. **Seeds 1–2:** apply the pre-registered rule to every claim in §16.
-2. **Methodology fixes:** 2016-validation evidence for rollout training and the residual.
-3. **Redraw E1, E2 and the RMSE figure** with seed means and spreads.
+1. ~~Seeds 1–2~~ ✅ done: H1–H4 hold, H5 fails (§16.0).
+2. ~~Methodology fixes on 2016~~ ✅ done: both decisions stand; rollout explanation corrected (§9.3, §13.4).
+3. ~~Redraw E1 and E2 with seeds~~ ✅ done (mean lines, seed-range bands, hatching for non-robust cells). **Still to do:** the required RMSE figure with seed means and spreads.
+4. Pyramid's T2M error alternates with lead time, consistently across seeds. Probably the daily cycle; decide whether to mention it.
 4. **Write the paper:** Intro → Methods → Results → Discussion, ≤2200 words, TCCML LaTeX.
 5. **Verify every reference** (DOIs, pages) before submission.
 6. Possible discussion point: A's patch artefacts could be reduced with overlapping or smoothed un-embedding (future work).
@@ -643,6 +685,8 @@ Try each in under a minute, without notes.
 13. Why do we run three seeds, and what is our rule for "real"?
 14. Which two methodology issues did we find, and how are we fixing them?
 15. Why can nothing in this project change Jannik's repo or charge your money?
+16. Which hypothesis failed, and why is that a useful result?
+17. What was confounded in "rollout training fixed the blow-up", and how did the control fix it?
 
 ---
 
@@ -664,6 +708,8 @@ Try each in under a minute, without notes.
 | `explore/extra_figures.py` | E1 and E2 |
 | `explore/diagnose_baseline.py` | Residual vs no-residual diagnostic |
 | `explore/run_seeds.py` | Overnight seed driver |
+| `explore/seed_analysis.py` · `figures/seed_analysis.md` | Hypotheses judged against 3 seeds |
+| `explore/validate_on_2016.py` · `figures/validation2016.md` | Protocol decisions re-checked on 2016 |
 | `explore/figures/` | All figures |
 | `explore/ablations/` | Earlier runs kept as evidence |
 | `explore/LEARNING_GUIDE.md` | This guide |
@@ -675,3 +721,4 @@ Try each in under a minute, without notes.
 | Date | Added |
 |---|---|
 | 2026-09-12 | First version: sections 1–21, covering everything up to seed-0 results and the start of seeds 1–2 |
+| 2026-09-13 | §16.0 final seed verdicts; §9.3 rollout explanation corrected with the equal-length control; §13.4 validation fixes done; timeline, lessons, open questions, self-test, repo map updated |

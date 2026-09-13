@@ -1,0 +1,9 @@
+model,variable,lead_hours,rmse
+single-step (6000 steps),Z500,6,181.19460332129145
+single-step (6000 steps),Z500,24,484.4083246942378
+single-step (6000 steps),Z500,72,933.8640669416401
+single-step (6000 steps),Z500,120,1176.9923266805265
+single-step (6000 steps),T850,6,1.0869713917044623
+single-step (6000 steps),T850,24,2.378964019591017
+single-step (6000 steps),T850,72,4.147425319875302
+single-step (6000 steps),T850,120,5.157319769648999

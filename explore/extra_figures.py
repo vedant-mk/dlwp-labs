@@ -61,6 +61,31 @@ def finished_runs() -> list:
     return [r for r in RUNS if (Path("runs") / r / "seed0" / "run.json").exists()]
 
 
+def seeds_of(run: str) -> list:
+    return sorted(int(p.parent.name[4:]) for p in (Path("runs") / run).glob("seed*/run.json"))
+
+
+def forecast_sample(run: str, seed: int) -> xr.Dataset:
+    """The spectrum sample of one run: every INIT_STRIDE-th initialisation at SPECTRUM_LEADS.
+    Seed 0 keeps its full forecast store; later seeds keep only this slice (explore/run_seeds.py)."""
+    folder = Path("runs") / run / f"seed{seed}"
+    leads = [np.timedelta64(h, "h") for h in SPECTRUM_LEADS]
+    if (folder / "forecasts_slice.zarr").exists():
+        sample = xr.open_zarr(folder / "forecasts_slice.zarr")
+    else:
+        sample = xr.open_zarr(folder / "forecasts.zarr").isel(time=slice(0, None, INIT_STRIDE))
+    return sample[SPECTRUM_VARIABLES].sel(prediction_timedelta=leads)
+
+
+def is_real(values: np.ndarray) -> bool:
+    """The pre-registered rule: every seed agrees in sign and |mean| >= 2 x seed standard deviation."""
+    values = np.asarray(values, dtype=float)
+    if len(values) < 2:
+        return False
+    same_sign = (values > 0).all() or (values < 0).all()
+    return bool(same_sign and abs(values.mean()) >= 2 * values.std(ddof=1))
+
+
 # ------------------------------------------------------------------------- E1
 def zonal_spectrum(field: xr.DataArray) -> np.ndarray:
     """Power per zonal wavenumber k = 1..32, area-weighted over latitude, averaged over time."""
@@ -78,17 +103,27 @@ def figure_spectra(runs: list, era5: xr.Dataset) -> pd.DataFrame:
     fig, axes = plt.subplots(len(SPECTRUM_LEADS), len(SPECTRUM_VARIABLES),
                              figsize=(11, 5.2), sharex=True, squeeze=False)
     for run in runs:
-        forecasts = xr.open_zarr(Path("runs") / run / "seed0" / "forecasts.zarr")
-        forecasts = forecasts[SPECTRUM_VARIABLES].isel(time=slice(0, None, INIT_STRIDE))
+        name, colour = RUNS[run]
+        for seed in seeds_of(run):
+            sample = forecast_sample(run, seed)
+            for lead in SPECTRUM_LEADS:
+                f = sample.sel(prediction_timedelta=np.timedelta64(lead, "h")).load()
+                t = truth_at(era5, f).load()   # the scalar lead broadcasts: ERA5 at time + lead
+                for var in SPECTRUM_VARIABLES:
+                    ratio = zonal_spectrum(f[var]) / zonal_spectrum(t[var])
+                    rows += [dict(run=run, seed=seed, variable=var, lead_hours=lead, wavenumber=int(kk),
+                                  power_ratio=float(r)) for kk, r in zip(k, ratio)]
+    table = pd.DataFrame(rows)
+    for run in runs:
+        name, colour = RUNS[run]
+        n = table[table.run == run].seed.nunique()
         for i, lead in enumerate(SPECTRUM_LEADS):
-            f = forecasts.sel(prediction_timedelta=np.timedelta64(lead, "h")).load()
-            t = truth_at(era5, f).load()   # the scalar lead broadcasts: ERA5 at time + lead
             for j, var in enumerate(SPECTRUM_VARIABLES):
-                ratio = zonal_spectrum(f[var]) / zonal_spectrum(t[var])
-                name, colour = RUNS[run]
-                axes[i, j].plot(k, ratio, color=colour, linewidth=2, label=name)
-                rows += [dict(run=run, variable=var, lead_hours=lead, wavenumber=int(kk), power_ratio=float(r))
-                         for kk, r in zip(k, ratio)]
+                g = table[(table.run == run) & (table.lead_hours == lead) & (table.variable == var)]
+                stats = g.groupby("wavenumber").power_ratio.agg(["mean", "min", "max"])
+                axes[i, j].fill_between(stats.index, stats["min"], stats["max"], color=colour, alpha=0.18, linewidth=0)
+                axes[i, j].plot(stats.index, stats["mean"], color=colour, linewidth=2,
+                                label=f"{name} (mean of {n} seeds)")
 
     for i, lead in enumerate(SPECTRUM_LEADS):
         for j, var in enumerate(SPECTRUM_VARIABLES):
@@ -116,14 +151,14 @@ def figure_spectra(runs: list, era5: xr.Dataset) -> pd.DataFrame:
     fig.legend(handles, labels, loc="upper center", ncol=len(runs), frameon=False, fontsize=9,
                bbox_to_anchor=(0.5, 1.02), labelcolor=INK_2)
     fig.suptitle("Below the dashed line the forecast has lost variance at that scale (blurring); "
-                 "above it, it carries variance ERA5 does not (spurious noise). "
+                 "above it, it carries variance ERA5 does not (spurious noise). Shading: range over seeds. "
                  f"Wavelength at the equator = {EARTH_CIRCUMFERENCE_KM:,} km / k.",
                  y=-0.01, fontsize=8, color=MUTED)
     fig.tight_layout(rect=(0, 0.02, 1, 0.95))
     for ext in ("png", "pdf"):
         fig.savefig(OUT / f"E1_spectrum_ratio.{ext}", dpi=200, bbox_inches="tight")
     plt.close(fig)
-    return pd.DataFrame(rows)
+    return table
 
 
 # ------------------------------------------------------------------------- E2
@@ -133,19 +168,31 @@ DIVERGING = LinearSegmentedColormap.from_list(  # blue = better (lower RMSE), re
 
 def figure_heatmap(runs: list) -> pd.DataFrame:
     variants = [r for r in runs if r != "baseline17"]
-    scores = pd.concat(pd.read_csv(Path("runs") / r / "seed0" / "scores.csv") for r in runs)
-    rmse = scores[scores.metric == "rmse"].pivot_table(index=["variable", "lead_hours"], columns="run", values="value")
+    per_seed = []
+    for run in runs:
+        for seed in seeds_of(run):
+            d = pd.read_csv(Path("runs") / run / f"seed{seed}" / "scores.csv")
+            per_seed.append(d[d.metric == "rmse"].assign(seed=seed))
+    rmse = pd.concat(per_seed).pivot_table(index=["variable", "lead_hours", "seed"], columns="run", values="value")
     leads = sorted(rmse.index.get_level_values("lead_hours").unique())
 
     fig, axes = plt.subplots(1, len(variants), figsize=(5.4 * len(variants), 5.6), squeeze=False, sharey=True)
     table = []
     limit = 30
     for ax, run in zip(axes[0], variants):
-        change = (rmse[run] - rmse["baseline17"]) / rmse["baseline17"] * 100
-        grid = change.unstack("lead_hours").reindex(HEATMAP_ORDER)
-        table.append(grid.assign(run=run).reset_index())
+        change = ((rmse[run] - rmse["baseline17"]) / rmse["baseline17"] * 100).dropna()
+        summary = change.groupby(["variable", "lead_hours"]).agg(
+            mean="mean", std=lambda v: v.std(ddof=1), seeds="count", real=is_real).reset_index()
+        table.append(summary.assign(run=run))
+        grid = summary.pivot(index="variable", columns="lead_hours", values="mean").reindex(HEATMAP_ORDER)
+        real = summary.pivot(index="variable", columns="lead_hours", values="real").reindex(HEATMAP_ORDER)
         image = ax.imshow(grid.values, cmap=DIVERGING, vmin=-limit, vmax=limit, aspect="auto")
-        ax.set_title(RUNS[run][0], color=INK, fontsize=10, loc="left")
+        for (row, col), ok in np.ndenumerate(real.values):   # hatch what fails the pre-registered rule
+            if not ok:
+                ax.add_patch(plt.Rectangle((col - 0.5, row - 0.5), 1, 1, fill=False, hatch="////",
+                                           edgecolor="#898781", linewidth=0))
+        n = int(summary.seeds.max())
+        ax.set_title(f"{RUNS[run][0]}  (mean of {n} seeds)", color=INK, fontsize=10, loc="left")
         ax.set_yticks(range(len(HEATMAP_ORDER)))
         ax.set_yticklabels(HEATMAP_ORDER, fontsize=8, color=INK_2)
         ticks = [i for i, h in enumerate(leads) if h % 24 == 0]
@@ -157,7 +204,6 @@ def figure_heatmap(runs: list) -> pd.DataFrame:
         for spine in ax.spines.values():
             spine.set_visible(False)
         ax.tick_params(length=0)
-        # label only the 5-day column, where the prediction says the difference should be largest
         last = len(leads) - 1
         for row, value in enumerate(grid.values[:, last]):
             ax.text(last, row, f"{value:+.0f}", ha="center", va="center", fontsize=6,
@@ -167,6 +213,8 @@ def figure_heatmap(runs: list) -> pd.DataFrame:
     bar.set_label("RMSE change vs baseline (%)   blue = better, red = worse", color=INK_2, fontsize=9)
     bar.ax.tick_params(labelsize=8, colors=MUTED, labelcolor=INK_2)
     bar.outline.set_visible(False)
+    fig.text(0.01, -0.01, "Hatched: not a robust difference (seeds disagree in sign, or |mean| < 2 x seed std).",
+             fontsize=8, color=MUTED)
     for ext in ("png", "pdf"):
         fig.savefig(OUT / f"E2_rmse_change_heatmap.{ext}", dpi=200, bbox_inches="tight")
     plt.close(fig)
@@ -182,9 +230,9 @@ def main() -> None:
     spectra = figure_spectra(runs, era5)
     spectra.to_csv(OUT / "E1_spectrum_ratio.csv", index=False)
     print(f"wrote {OUT}/E1_spectrum_ratio.png/.pdf/.csv")
-    summary = spectra[spectra.wavenumber >= 9].groupby(["variable", "lead_hours", "run"]).power_ratio.mean()
-    print("\nmean power ratio at small scales (k >= 9); 1 = realistic, < 1 = blurred")
-    print(summary.unstack("run").round(3).to_string())
+    summary = spectra[spectra.wavenumber >= 9].groupby(["variable", "lead_hours", "run", "seed"]).power_ratio.mean()
+    print("\nmean power ratio at small scales (k >= 9), per seed; 1 = realistic")
+    print(summary.unstack(["run", "seed"]).round(2).to_string())
 
     if "baseline17" in runs and len(runs) > 1:
         table = figure_heatmap(runs)

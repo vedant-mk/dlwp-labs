@@ -302,3 +302,48 @@ seed noise. This is fixed now so the analysis cannot be tuned to the results.
 
 **Expectation before seeing seeds:** 1-3 likely (large effects), 4 probable, 5 uncertain.
 Outcomes that fail these are reported as such, not reframed.
+
+---
+
+## Methodology fixes on the 2016 validation year (2026-09-13)
+
+Script `explore/validate_on_2016.py`, results `explore/figures/validation2016.md`. No test-year data used.
+
+**Check 1 — residual (one-step MSE on 2016, standardised):** plain 0.1070 vs persistence 0.0818
+(**1.31×**); residual 0.0612 (**0.75×**). Same conclusion as the December-2015 check (1.26× / 0.73×).
+**The residual decision stands on validation evidence.**
+
+**Checks 2 and 3 — roll-out training (Z500 RMSE on 2016):**
+
+| model | 6 h | 1 d | 3 d | 5 d |
+|---|---|---|---|---|
+| single-step, 2000 steps | 247 | 730 | 3,061 | 16,874 |
+| single-step, 6000 steps | **181** | 484 | 934 | 1,177 |
+| roll-out-trained, 6000 steps | 185 | **463** | **864** | **1,027** |
+| persistence | 220 | 573 | 906 | 1,008 |
+
+T850 at 5 days: 80.1 / 5.16 / **4.47** (persistence 4.19).
+
+**Correction to the earlier story.** The catastrophic 5-day divergence was caused mainly by
+*undertraining* (2000 steps), not by the absence of roll-out training: single-step training for the
+same 6000 steps does not diverge. Roll-out training is still a real improvement at longer leads
+(Z500 −7% at 3 d, −13% at 5 d; T850 −13% at 5 d) for a ~2% cost at 6 h. **The decision stands on
+validation evidence, but its justification in the report is "improves multi-day skill", not
+"prevents divergence".**
+
+## Seed results against the pre-registered hypotheses (3 seeds each)
+
+Full tables: `explore/figures/seed_analysis.md` (script `explore/seed_analysis.py`).
+
+| Hypothesis | Verdict | Key numbers (mean ± std over seeds) |
+|---|---|---|
+| H1 baseline reproducible | **holds** | largest seed spread 0.59% of RMSE |
+| H2 A improves humidity 5–8% at 1–3 d | **holds** | 9/9 cells real: −6.7% to −9.0% |
+| H3 A degrades smooth fields at 5 d | **holds** | Z500 +27.7 ± 5.4%, T850 +36.1 ± 6.5%, T2M +58.1 ± 5.5% |
+| H4 C cuts spurious small-scale power 15–30% | **holds** | Z500 −16.5% (1 d), −27.9% (5 d); T850 −11.0%, −20.9%; Q850 −2.8%, −12.8% |
+| H5 C's RMSE within seed noise | **fails** | 7/8 cells a real cost: Z500 +0.8% to +3.6%; T850 +1.2% to +2.4% up to 3 d; tie at 5 d |
+
+**Reading.** C buys ~15–30% less spurious small-scale variance for a small but real RMSE cost
+(≤ 3.6%, shrinking with lead). A trades ~8% better humidity for large degradation of smooth fields,
+driven by grid-scale noise at its own patch periods. Pyramid's T2M shows a consistent (not hatched)
+alternating pattern with lead, likely tied to the diurnal cycle; noted, not interpreted further.
