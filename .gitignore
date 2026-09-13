@@ -25,3 +25,5 @@ explore/seed_driver*.out
 explore/validate_*.log
 paper/*.zip
 paper/overleaf/
+paper/draft_*.pdf
+paper/draft.pdf
