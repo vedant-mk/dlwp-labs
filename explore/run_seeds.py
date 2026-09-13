@@ -85,9 +85,17 @@ def main() -> None:
             if (run_dir / "run.json").exists():
                 say(f"{config} seed {seed} already done, skipping")
                 continue
+            # a just-deleted forecast store and macOS swap can make free space dip for minutes,
+            # so re-check before giving up rather than stopping on one low reading
             free = shutil.disk_usage(ROOT).free / 1e9
+            for _ in range(10):
+                if free >= 5:
+                    break
+                say(f"  only {free:.1f} GB free, re-checking in 60 s")
+                time.sleep(60)
+                free = shutil.disk_usage(ROOT).free / 1e9
             if free < 5:
-                say(f"STOPPING: only {free:.1f} GB free, a run needs ~2.5 GB of headroom")
+                say(f"STOPPING: only {free:.1f} GB free after 10 minutes, a run needs ~2.5 GB of headroom")
                 return
             say(f"starting {config} seed {seed} ({free:.1f} GB free)")
             started = time.time()
