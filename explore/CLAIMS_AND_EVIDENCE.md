@@ -78,6 +78,25 @@ We hoped a scale-aware ViT would forecast better or more realistically than the 
 
 **Open framing decision:** the brief says "two different ways". Proposed: **A′ (architecture) vs C′ (loss)** as the two, with baseline, A, B′ and C as ablations explaining *why*.
 
+### 3a. Compliance audit (2026-09-13)
+
+**Verified directly:**
+- Jannik's files are untouched: `git diff upstream/main` is empty for `experiment.py`, `prepare_eval_data.py`, `configs/baseline.yaml`, `references/`, the lab notebooks, `README.md`, `environment.yaml`. Our changes are only in `utils/` (which the README says is ours to fill), new `configs/`, `explore/`, `.gitignore`.
+- All 18 reported runs went through `experiment.py`: train 2009–2015, include Z500 and T850, statistics from `data/stats_train.zarr` with period `2009:2015`, validation 2016, test 2017–2019.
+
+**Points to handle in the report so nothing looks like a deviation:**
+
+| Issue | Risk | Handling |
+|---|---|---|
+| Our "baseline" is the course ViT **plus** residual, roll-out training, 17 variables, 7 years, `predict_stride` 5 | Could be read as not "the baseline ViT" | State every change in Methods as applied identically to all models; justify with the 2016 checks; cite the no-residual ablation |
+| Round-2 design (smoother) was motivated by spectra of **test-year** forecasts | Model selection on test data | The ranking holds on **2016 validation** too (plain MSE, mean of 3 seeds): A′ 0.033 / 0.130, B′ 0.039 / 0.156, baseline 0.047 / 0.213 (step 1 / step 4). State this openly |
+| The seam smoother could look like a second, separate idea | Brief asks for **one** bias | Frame it as scale interaction below the patch size (neighbouring patches coupling at fine scales), and as an ablation explaining A′ |
+| Brief says loss "over **epochs**"; our curves are over **steps** | Minor | Label the axis as training steps (runs are step-based, < 1 epoch of passes per plot interval) |
+| Extra figures made by `explore/` scripts, not `Experiment.evaluation_plots` | Minor | They read the test forecasts written by `experiment.py`, so the evaluation data are the brief's; say so |
+| Pyramid training loss is a different objective | Loss plot could mislead | Caption: compare validation (plain MSE), not training curves |
+| "Show the code for the modified modules" | Required in the report | Include short listings: `MultiScaleViT`, `SeamSmoother`, `f_pyramid_mse` |
+| Report, word limit, TCCML template, submission | Not done | Writing phase; template zip is in `~/Downloads` |
+
 ---
 
 ## 4. Claims ledger: what the paper may say
